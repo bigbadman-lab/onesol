@@ -69,10 +69,18 @@ export default function Leaderboard() {
 
       const data = await response.json();
       console.log("Leaderboard data received:", data);
-      setLeaderboard(data.leaderboard || []);
+      // Handle empty leaderboard or missing data gracefully
+      const leaderboardData = data?.leaderboard || data || [];
+      setLeaderboard(Array.isArray(leaderboardData) ? leaderboardData : []);
     } catch (err) {
       console.error("Error fetching leaderboard:", err);
-      setError("Failed to load leaderboard");
+      // If it's a network error, show empty state instead of error
+      if (err.message === "Network request failed" || err.message.includes("Failed to fetch")) {
+        setLeaderboard([]);
+        setError(null);
+      } else {
+        setError("Failed to load leaderboard");
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -85,9 +93,13 @@ export default function Leaderboard() {
   };
 
   const getDisplayName = (entry) => {
+    if (!entry) return "Unknown User";
     if (entry.nickname) return entry.nickname;
     // Show shortened UUID if no nickname
-    return `User-${entry.uuid.slice(0, 8)}`;
+    if (entry.uuid) {
+      return `User-${entry.uuid.slice(0, 8)}`;
+    }
+    return "Unknown User";
   };
 
   const getRankDisplay = (index) => {
@@ -271,92 +283,96 @@ export default function Leaderboard() {
           </View>
         ) : (
           <View style={{ marginHorizontal: 20, marginTop: 40 }}>
-            {leaderboard.map((entry, index) => {
-              const isCurrentUser = entry.uuid === deviceId;
-              const rank = index + 1;
+            {leaderboard
+              .filter((entry) => entry && entry.uuid) // Filter out invalid entries
+              .map((entry, index) => {
+                const isCurrentUser = entry.uuid === deviceId;
+                const rank = index + 1;
+                const finalSol = entry.final_sol != null ? parseFloat(entry.final_sol) : 0;
+                const correctCount = entry.correct_count != null ? entry.correct_count : 0;
 
-              return (
-                <View
-                  key={entry.uuid}
-                  style={{
-                    backgroundColor: isCurrentUser ? "#1A1A3A" : "#1A1A1A",
-                    borderRadius: 16,
-                    padding: 16,
-                    marginBottom: 12,
-                    borderWidth: 2,
-                    borderColor: isCurrentUser ? "#7B68EE" : "#333333",
-                    flexDirection: "row",
-                    alignItems: "center",
-                  }}
-                >
-                  {/* Rank */}
+                return (
                   <View
+                    key={entry.uuid}
                     style={{
-                      width: 50,
+                      backgroundColor: isCurrentUser ? "#1A1A3A" : "#1A1A1A",
+                      borderRadius: 16,
+                      padding: 16,
+                      marginBottom: 12,
+                      borderWidth: 2,
+                      borderColor: isCurrentUser ? "#7B68EE" : "#333333",
+                      flexDirection: "row",
                       alignItems: "center",
                     }}
                   >
-                    <Text
+                    {/* Rank */}
+                    <View
                       style={{
-                        fontSize: rank <= 3 ? 32 : 20,
-                        fontWeight: "900",
-                        color: rank <= 3 ? "#FFFFFF" : "#999999",
+                        width: 50,
+                        alignItems: "center",
                       }}
                     >
-                      {getRankDisplay(index)}
-                    </Text>
-                  </View>
+                      <Text
+                        style={{
+                          fontSize: rank <= 3 ? 32 : 20,
+                          fontWeight: "900",
+                          color: rank <= 3 ? "#FFFFFF" : "#999999",
+                        }}
+                      >
+                        {getRankDisplay(index)}
+                      </Text>
+                    </View>
 
-                  {/* Player Info */}
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text
-                      style={{
-                        fontSize: 18,
-                        fontWeight: "700",
-                        color: "#FFFFFF",
-                        marginBottom: 4,
-                      }}
-                      numberOfLines={1}
-                    >
-                      {getDisplayName(entry)}
-                      {isCurrentUser && (
-                        <Text style={{ color: "#7B68EE" }}> (You)</Text>
-                      )}
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        color: "#999999",
-                      }}
-                    >
-                      {entry.correct_count} correct predictions
-                    </Text>
-                  </View>
+                    {/* Player Info */}
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text
+                        style={{
+                          fontSize: 18,
+                          fontWeight: "700",
+                          color: "#FFFFFF",
+                          marginBottom: 4,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {getDisplayName(entry)}
+                        {isCurrentUser && (
+                          <Text style={{ color: "#7B68EE" }}> (You)</Text>
+                        )}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: "#999999",
+                        }}
+                      >
+                        {correctCount} correct prediction{correctCount !== 1 ? 's' : ''}
+                      </Text>
+                    </View>
 
-                  {/* Score */}
-                  <View style={{ alignItems: "flex-end" }}>
-                    <Text
-                      style={{
-                        fontSize: 24,
-                        fontWeight: "900",
-                        color: "#00FF00",
-                      }}
-                    >
-                      {parseFloat(entry.final_sol).toFixed(2)}
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        color: "#999999",
-                        marginTop: 2,
-                      }}
-                    >
-                      SOL
-                    </Text>
+                    {/* Score */}
+                    <View style={{ alignItems: "flex-end" }}>
+                      <Text
+                        style={{
+                          fontSize: 24,
+                          fontWeight: "900",
+                          color: "#00FF00",
+                        }}
+                      >
+                        {isNaN(finalSol) ? "0.00" : finalSol.toFixed(2)}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: "#999999",
+                          marginTop: 2,
+                        }}
+                      >
+                        SOL
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              );
-            })}
+                );
+              })}
           </View>
         )}
 

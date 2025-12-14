@@ -1,6 +1,6 @@
 import { usePathname, useRouter } from 'expo-router';
 import { App } from 'expo-router/build/qualified-entry';
-import React, { memo, useEffect, useState } from 'react';
+import React, { memo, useEffect } from 'react';
 import { ErrorBoundaryWrapper } from './__create/SharedErrorBoundary';
 import './src/__create/polyfills';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -60,6 +60,9 @@ const healthyResponse = {
 
 const useHandshakeParent = () => {
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
     const handleMessage = (event: MessageEvent) => {
       if (event.data.type === 'sandbox:mobile:healthcheck') {
         window.parent.postMessage(healthyResponse, '*');
@@ -81,6 +84,9 @@ const CreateApp = () => {
   useHandshakeParent();
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
     const handleMessage = (event: MessageEvent) => {
       if (event.data.type === 'sandbox:navigation' && event.data.pathname !== pathname) {
         router.push(event.data.pathname);
@@ -95,6 +101,9 @@ const CreateApp = () => {
   }, [router, pathname]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
     window.parent.postMessage(
       {
         type: 'sandbox:mobile:navigation',

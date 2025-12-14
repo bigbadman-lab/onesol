@@ -36,9 +36,7 @@ type Params = Parameters<typeof expoFetch>;
 const fetchToWeb = async function fetchWithHeaders(...args: Params) {
   const firstPartyURL = process.env.EXPO_PUBLIC_BASE_URL;
   const secondPartyURL = process.env.EXPO_PUBLIC_PROXY_BASE_URL;
-  if (!firstPartyURL || !secondPartyURL) {
-    return expoFetch(...args);
-  }
+  
   const [input, init] = args;
   const url = getURLFromArgs(input, init);
   if (!url) {
@@ -55,12 +53,29 @@ const fetchToWeb = async function fetchWithHeaders(...args: Params) {
     return expoFetch(input, init);
   }
 
+  // Handle relative URLs - this needs to happen even if env vars are missing
   let finalInput = input;
-  const baseURL = isSecondPartyURL(url) ? secondPartyURL : firstPartyURL;
-  if (typeof input === 'string') {
-    finalInput = input.startsWith('/') ? `${baseURL}${input}` : input;
-  } else {
+  if (typeof input === 'string' && input.startsWith('/')) {
+    // If no base URL is configured, relative URLs will fail in React Native
+    if (!firstPartyURL && !secondPartyURL) {
+      console.error(
+        'EXPO_PUBLIC_BASE_URL and EXPO_PUBLIC_PROXY_BASE_URL are not set. ' +
+        'Relative URLs will not work in React Native. URL:', input
+      );
+      throw new Error(
+        `Cannot make request to relative URL "${input}" without EXPO_PUBLIC_BASE_URL set. ` +
+        'Please configure your environment variables in your build configuration.'
+      );
+    }
+    const baseURL = isSecondPartyURL(url) ? secondPartyURL : firstPartyURL;
+    finalInput = `${baseURL}${input}`;
+  } else if (typeof input !== 'string') {
     return expoFetch(input, init);
+  }
+
+  // If env vars are missing and it's not a relative URL, proceed without headers
+  if (!firstPartyURL && !secondPartyURL) {
+    return expoFetch(finalInput, init);
   }
 
   const initHeaders = init?.headers ?? {};
