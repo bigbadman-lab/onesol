@@ -33,7 +33,6 @@ const WEB_ALIASES = {
   'expo-location': path.resolve(__dirname, './polyfills/web/location.web.ts'),
   './layouts/Tabs': path.resolve(__dirname, './polyfills/web/tabbar.web.jsx'),
   'expo-notifications': path.resolve(__dirname, './polyfills/web/notifications.web.tsx'),
-  'expo-contacts': path.resolve(__dirname, './polyfills/web/contacts.web.ts'),
   'react-native-web/dist/exports/ScrollView': path.resolve(
     __dirname,
     './polyfills/web/scrollview.web.jsx'

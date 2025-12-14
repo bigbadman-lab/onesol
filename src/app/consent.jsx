@@ -61,7 +61,7 @@ export default function Consent() {
             marginBottom: 20,
           }}
         >
-          Welcome to Chart Pattern Predictor
+          Welcome to Memecoin Market Simulator
         </Text>
 
         {/* Subtitle */}

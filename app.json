@@ -8,11 +8,14 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "buildNumber": "10",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "bundleIdentifier": "com.createinc.aeb5e7d736fa4b858559cd73dd97762d"
     },
     "android": {
+      "versionCode": 10,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -49,7 +52,10 @@
       ],
       [
         "expo-video",
-        { "supportsBackgroundPlayback": true, "supportsPictureInPicture": true }
+        {
+          "supportsBackgroundPlayback": true,
+          "supportsPictureInPicture": true
+        }
       ],
       "expo-font",
       "expo-secure-store",
@@ -64,7 +70,11 @@
     },
     "extra": {
       "router": {
-        "origin": false
+        "origin": false,
+        "sitemap": false
+      },
+      "eas": {
+        "projectId": "ca523491-b0b6-4c5d-b048-3c45c05b991e"
       }
     },
     "runtimeVersion": {
