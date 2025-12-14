@@ -35,32 +35,57 @@ export default function RootLayout() {
       if (!isReady || hasNavigated) return;
 
       try {
-        const consent = await SecureStore.getItemAsync(CONSENT_KEY);
+        // Add timeout to prevent hanging
+        const consentPromise = SecureStore.getItemAsync(CONSENT_KEY);
+        const timeoutPromise = new Promise((resolve) => 
+          setTimeout(() => resolve(null), 5000)
+        );
+        
+        const consent = await Promise.race([consentPromise, timeoutPromise]);
 
         // Wait minimum 2 seconds for branding
         await new Promise((resolve) => setTimeout(resolve, 2000));
 
         // Navigate based on consent
-        if (consent === "true") {
-          router.replace("/home");
-        } else {
+        try {
+          if (consent === "true") {
+            router.replace("/home");
+          } else {
+            router.replace("/consent");
+          }
+        } catch (navError) {
+          console.error("Navigation error:", navError);
+          // Fallback navigation
           router.replace("/consent");
         }
 
         setHasNavigated(true);
 
-        // Hide splash after navigation
-        await SplashScreen.hideAsync();
+        // Hide splash after navigation - always hide even if there's an error
+        try {
+          await SplashScreen.hideAsync();
+        } catch (splashError) {
+          console.error("Error hiding splash:", splashError);
+        }
       } catch (error) {
         console.error("Error checking consent:", error);
-        router.replace("/consent");
+        // Always try to navigate and hide splash, even on error
+        try {
+          router.replace("/consent");
+        } catch (navError) {
+          console.error("Failed to navigate on error:", navError);
+        }
         setHasNavigated(true);
-        await SplashScreen.hideAsync();
+        try {
+          await SplashScreen.hideAsync();
+        } catch (splashError) {
+          console.error("Error hiding splash on error:", splashError);
+        }
       }
     }
 
     checkConsent();
-  }, [isReady, hasNavigated]);
+  }, [isReady, hasNavigated, router]);
 
   return (
     <QueryClientProvider client={queryClient}>

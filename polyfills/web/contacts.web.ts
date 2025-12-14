@@ -1,10 +1,86 @@
-import type { ExistingContact, ContactQuery } from 'expo-contacts';
-import { Fields, SortTypes } from 'expo-contacts/src/Contacts';
 import Alert from './alerts.web';
-import * as Notifications from 'expo-contacts';
-const { PermissionStatus } = Notifications;
 
-export { PermissionStatus, Fields, SortTypes };
+// Stub types to replace removed expo-contacts package
+export enum PermissionStatus {
+  UNDETERMINED = 'undetermined',
+  GRANTED = 'granted',
+  DENIED = 'denied',
+}
+
+export enum Fields {
+  ID = 'id',
+  Name = 'name',
+  PhoneNumbers = 'phoneNumbers',
+  Emails = 'emails',
+  Addresses = 'addresses',
+}
+
+export enum SortTypes {
+  FirstName = 'firstName',
+  LastName = 'lastName',
+}
+
+type ContactPhoneNumber = {
+  number: string;
+  isPrimary?: boolean;
+  label?: string;
+};
+
+type ContactEmail = {
+  email: string;
+  isPrimary?: boolean;
+  label?: string;
+};
+
+type ContactAddress = {
+  street?: string;
+  city?: string;
+  region?: string;
+  postalCode?: string;
+  country?: string;
+  label?: string;
+};
+
+export type ExistingContact = {
+  id: string;
+  contactType?: 'person' | 'company';
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  middleName?: string;
+  maidenName?: string;
+  namePrefix?: string;
+  nameSuffix?: string;
+  nickname?: string;
+  phoneticFirstName?: string;
+  phoneticMiddleName?: string;
+  phoneticLastName?: string;
+  company?: string;
+  jobTitle?: string;
+  department?: string;
+  phoneNumbers?: ContactPhoneNumber[];
+  emails?: ContactEmail[];
+  addresses?: ContactAddress[];
+  birthday?: { day: number; month: number; year?: number };
+  note?: string;
+  imageAvailable?: boolean;
+  image?: string;
+  rawImage?: string;
+  dates?: Array<{ day: number; month: number; year?: number; label?: string }>;
+  relationships?: Array<{ name: string; label?: string }>;
+  instantMessageAddresses?: Array<{ username: string; service?: string; label?: string }>;
+  urlAddresses?: Array<{ url: string; label?: string }>;
+  nonGregorianBirthday?: { day: number; month: number; year?: number };
+  socialProfiles?: Array<{ username: string; service?: string; label?: string }>;
+  isFavorite?: boolean;
+};
+
+export type ContactQuery = {
+  fields?: Fields[];
+  pageSize?: number;
+  pageOffset?: number;
+  sort?: SortTypes;
+};
 
 const fakeContacts: ExistingContact[] = [
   {

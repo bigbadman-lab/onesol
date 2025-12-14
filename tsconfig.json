@@ -9,7 +9,7 @@
       "dom",
       "dom.iterable"
     ],
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "allowJs": true,
     "noEmit": true,

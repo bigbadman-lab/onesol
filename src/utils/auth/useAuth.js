@@ -17,12 +17,29 @@ export const useAuth = () => {
   const { isOpen, close, open } = useAuthModal();
 
   const initiate = useCallback(() => {
-    SecureStore.getItemAsync(authKey).then((auth) => {
-      useAuthStore.setState({
-        auth: auth ? JSON.parse(auth) : null,
-        isReady: true,
+    SecureStore.getItemAsync(authKey)
+      .then((auth) => {
+        try {
+          useAuthStore.setState({
+            auth: auth ? JSON.parse(auth) : null,
+            isReady: true,
+          });
+        } catch (parseError) {
+          console.error('Error parsing auth data:', parseError);
+          useAuthStore.setState({
+            auth: null,
+            isReady: true,
+          });
+        }
+      })
+      .catch((error) => {
+        console.error('Error loading auth from SecureStore:', error);
+        // Set ready even on error so app can continue
+        useAuthStore.setState({
+          auth: null,
+          isReady: true,
+        });
       });
-    });
   }, []);
 
   useEffect(() => {}, []);

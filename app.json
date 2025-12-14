@@ -19,7 +19,6 @@
     },
     "android": {
       "versionCode": 10,
-      "label": "One Sol",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -70,7 +69,8 @@
       ],
       "expo-font",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-asset"
     ],
     "web": {
       "bundler": "metro",

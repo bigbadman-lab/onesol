@@ -93,7 +93,7 @@ config.cacheStores = () => [
   }),
 ];
 config.resetCache = false;
-config.fileMapCacheDirectory = cacheDir;
+// Note: fileMapCacheDirectory option removed - not supported in current Metro version
 config.reporter = {
   ...config.reporter,
   update: (event) => {
