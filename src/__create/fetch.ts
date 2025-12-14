@@ -1,8 +1,12 @@
 import * as SecureStore from 'expo-secure-store';
 import { fetch as expoFetch } from 'expo/fetch';
 
-const originalFetch = fetch;
-const authKey = `${process.env.EXPO_PUBLIC_PROJECT_GROUP_ID}-jwt`;
+// Safely get original fetch - it might not exist in all environments
+const originalFetch = typeof fetch !== 'undefined' ? fetch : expoFetch;
+// Safely construct authKey - fallback if PROJECT_GROUP_ID is missing
+const authKey = process.env.EXPO_PUBLIC_PROJECT_GROUP_ID 
+  ? `${process.env.EXPO_PUBLIC_PROJECT_GROUP_ID}-jwt`
+  : 'default-auth-jwt';
 
 const getURLFromArgs = (...args: Parameters<typeof fetch>) => {
   const [urlArg] = args;
