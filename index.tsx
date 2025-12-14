@@ -13,7 +13,6 @@ if (__DEV__) {
 }
 // #region agent log
 // #endregion
-import './src/__create/polyfills';
 // Safely set Buffer - might not be available in all environments
 try {
   global.Buffer = require('buffer').Buffer;
@@ -22,13 +21,38 @@ try {
   console.warn('Could not set global.Buffer:', error);
 }
 
+// Safely import and set up polyfills
+try {
+  require('./src/__create/polyfills');
+} catch (error) {
+  console.error('[Index] Error loading polyfills:', error);
+  // Continue anyway - app might still work without custom fetch
+}
+
 import 'expo-router/entry';
 import { App } from 'expo-router/build/qualified-entry';
-import type { ReactNode } from 'react';
+import React, { type ReactNode } from 'react';
 import { AppRegistry, LogBox } from 'react-native';
-import { DeviceErrorBoundaryWrapper } from './__create/DeviceErrorBoundary';
-import AnythingMenu from './src/__create/anything-menu';
 
+// Safely import error boundary and menu with fallbacks
+let DeviceErrorBoundaryWrapper: React.ComponentType<{ children: ReactNode }>;
+let AnythingMenu: React.ComponentType<{ children: ReactNode }>;
+
+try {
+  DeviceErrorBoundaryWrapper = require('./__create/DeviceErrorBoundary').DeviceErrorBoundaryWrapper;
+} catch (error) {
+  console.error('[Index] Error loading DeviceErrorBoundary:', error);
+  // Create a fallback error boundary that just passes through children
+  DeviceErrorBoundaryWrapper = ({ children }: { children: ReactNode }) => <>{children}</>;
+}
+
+try {
+  AnythingMenu = require('./src/__create/anything-menu').default;
+} catch (error) {
+  console.error('[Index] Error loading AnythingMenu:', error);
+  // Create a fallback that just passes through children
+  AnythingMenu = ({ children }: { children: ReactNode }) => <>{children}</>;
+}
 
 function AnythingMenuWrapper({ children }: { children: ReactNode }) {
   return (
@@ -36,7 +60,7 @@ function AnythingMenuWrapper({ children }: { children: ReactNode }) {
       {children}
     </AnythingMenu>
   );
-};
+}
 
 let WrapperComponentProvider = ({ children }: { children: ReactNode }) => {
   // Always wrap with error boundary in production to catch crashes

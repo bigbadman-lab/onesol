@@ -18,14 +18,23 @@ export default function useNetworkStatus() {
 // Helper function to check network before making requests
 export async function checkNetworkConnection() {
   try {
-    // Make a simple HEAD request to check connectivity
+    // Make a simple HEAD request to a lightweight endpoint to check connectivity
     // Using a small timeout to fail fast
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-    const response = await fetch("/api/trades/random", {
+    // Use a simple endpoint that's more likely to exist for network checks
+    // Or just check if we can reach the base URL
+    const baseURL = process.env.EXPO_PUBLIC_BASE_URL || 'https://app.1sol.fun';
+    const response = await fetch(`${baseURL}/api/health`, {
       method: "HEAD",
       signal: controller.signal,
+    }).catch(() => {
+      // If health endpoint doesn't exist, try the base URL
+      return fetch(baseURL, {
+        method: "HEAD",
+        signal: controller.signal,
+      });
     });
 
     clearTimeout(timeoutId);
@@ -39,7 +48,7 @@ export async function checkNetworkConnection() {
     ) {
       return false;
     }
-    // Other errors might not be network-related
+    // Other errors might not be network-related - assume online
     return true;
   }
 }

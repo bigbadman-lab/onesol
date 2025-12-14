@@ -11,10 +11,27 @@ const fetchWithRetry = async (url, options = {}, retries = 2) => {
     throw new Error("OFFLINE");
   }
 
+  console.log('[fetchWithRetry] Starting request:', {
+    url,
+    method: options.method || 'GET',
+    hasBody: !!options.body,
+    retries,
+  });
+
   for (let i = 0; i <= retries; i++) {
     try {
+      console.log(`[fetchWithRetry] Attempt ${i + 1}/${retries + 1}:`, url);
       const response = await fetch(url, options);
+      console.log(`[fetchWithRetry] Response received:`, {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        url: response.url,
+        redirected: response.redirected,
+      });
       if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Could not read error body');
+        console.error(`[fetchWithRetry] Error response body:`, errorText);
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       return response;
@@ -51,12 +68,83 @@ const fetchTrade = async (tradeId) => {
 
 // Helper to fetch random trade for endless mode with retry
 const fetchRandomTrade = async (excludeIds = []) => {
-  const response = await fetchWithRetry("/api/trades/random", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ excludeIds }),
+  const url = "/api/trades/random";
+  const requestBody = { excludeIds };
+  
+  console.log('[fetchRandomTrade] Request:', {
+    url,
+    method: 'POST',
+    body: requestBody,
+    excludeIdsCount: excludeIds.length,
   });
-  return await response.json();
+  
+  try {
+    const response = await fetchWithRetry(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+    });
+    
+    console.log('[fetchRandomTrade] Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      url: response.url,
+      headers: Object.fromEntries(response.headers.entries()),
+    });
+    
+    if (!response.ok) {
+      let errorText = '';
+      let errorData = null;
+      try {
+        errorText = await response.text();
+        // Try to parse as JSON
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          // Not JSON, keep as text
+        }
+      } catch (e) {
+        errorText = 'Could not read error response body';
+      }
+      
+      console.error(`[fetchRandomTrade] API Error Details:`, {
+        status: response.status,
+        statusText: response.statusText,
+        errorText,
+        errorData,
+        responseUrl: response.url,
+        requestUrl: url,
+        method: 'POST',
+      });
+      
+      // Handle specific error cases
+      if (response.status === 404 && errorData?.error === 'No trades available') {
+        console.error('[fetchRandomTrade] Server reports no trades available, but database has 7 trades. This suggests a server-side filtering issue.');
+        console.error('[fetchRandomTrade] Possible causes:');
+        console.error('  - Trades may have status field that filters them out');
+        console.error('  - Trades may be filtered by date or visibility');
+        console.error('  - Trades may be missing required fields');
+        throw new Error('NO_TRADES_AVAILABLE');
+      }
+      
+      throw new Error(`Failed to fetch random trade: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log('[fetchRandomTrade] Success:', { tradeId: data?.id });
+    return data;
+    } catch (error) {
+      console.error("[fetchRandomTrade] Error:", error);
+      // Re-throw with more context
+      if (error.message === 'NO_TRADES_AVAILABLE') {
+        throw new Error("No trades are currently available. Please try again later.");
+      }
+      if (error.message.includes("HTTP 404")) {
+        throw new Error("Random trade endpoint not found. Please check if the API endpoint exists.");
+      }
+      throw error;
+    }
 };
 
 const useGameStore = create((set, get) => ({
@@ -75,32 +163,41 @@ const useGameStore = create((set, get) => ({
   // Actions for endless mode
   startEndlessMode: async () => {
     console.log("Starting endless mode...");
-    const firstTrade = await fetchRandomTrade();
-    console.log("First trade loaded:", firstTrade.id);
-
-    // Prefetch second trade
-    let secondTrade = null;
     try {
-      secondTrade = await fetchRandomTrade([firstTrade.id]);
-      console.log("Second trade prefetched:", secondTrade.id);
+      const firstTrade = await fetchRandomTrade();
+      console.log("First trade loaded:", firstTrade?.id);
+      
+      if (!firstTrade || !firstTrade.id) {
+        throw new Error("Invalid trade data received from server");
+      }
+
+      // Prefetch second trade
+      let secondTrade = null;
+      try {
+        secondTrade = await fetchRandomTrade([firstTrade.id]);
+        console.log("Second trade prefetched:", secondTrade?.id);
+      } catch (error) {
+        console.warn("Failed to prefetch second trade:", error);
+      }
+
+      set({
+        endlessModeActive: true,
+        endlessModeBalance: STARTING_BALANCE,
+        endlessModeTradeCount: 0,
+        endlessModeCorrectCount: 0,
+        endlessModeResults: [],
+        endlessModeCurrentTrade: firstTrade,
+        endlessModeSelectedBet: null,
+        endlessModeUsedTradeIds: [firstTrade.id],
+        endlessModeHasReset: false,
+        endlessModeNextTrade: secondTrade,
+      });
+
+      console.log("Endless mode started successfully");
     } catch (error) {
-      console.warn("Failed to prefetch second trade:", error);
+      console.error("Error starting endless mode:", error);
+      throw error; // Re-throw so the UI can handle it
     }
-
-    set({
-      endlessModeActive: true,
-      endlessModeBalance: STARTING_BALANCE,
-      endlessModeTradeCount: 0,
-      endlessModeCorrectCount: 0,
-      endlessModeResults: [],
-      endlessModeCurrentTrade: firstTrade,
-      endlessModeSelectedBet: null,
-      endlessModeUsedTradeIds: [firstTrade.id],
-      endlessModeHasReset: false,
-      endlessModeNextTrade: secondTrade,
-    });
-
-    console.log("Endless mode started successfully");
   },
 
   setEndlessModeSelectedBet: (amount) =>
