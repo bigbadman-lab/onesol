@@ -8,6 +8,9 @@ import {
   TextInput,
   ActivityIndicator,
   Animated,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -33,9 +36,9 @@ export default function Settings() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Nickname state
+  // Nickname state - minimal
   const [nickname, setNickname] = useState("");
-  const [editingNickname, setEditingNickname] = useState(false);
+  const [showNicknameModal, setShowNicknameModal] = useState(false);
   const [tempNickname, setTempNickname] = useState("");
   const [loadingNickname, setLoadingNickname] = useState(true);
   const [savingNickname, setSavingNickname] = useState(false);
@@ -52,7 +55,7 @@ export default function Settings() {
 
   // Start pulsing animation when nickname is empty
   useEffect(() => {
-    if (!loadingNickname && !nickname && !editingNickname) {
+    if (!loadingNickname && !nickname) {
       // Create a looping pulse animation
       Animated.loop(
         Animated.sequence([
@@ -71,7 +74,7 @@ export default function Settings() {
     } else {
       pulseAnim.setValue(0);
     }
-  }, [loadingNickname, nickname, editingNickname]);
+  }, [loadingNickname, nickname]);
 
   // Interpolate border color for pulsing effect
   const borderColor = pulseAnim.interpolate({
@@ -95,10 +98,11 @@ export default function Settings() {
   };
 
   const handleEditNickname = () => {
-    setTempNickname(nickname);
-    setEditingNickname(true);
+    if (loadingNickname) return;
+    setTempNickname(nickname || "");
+    setShowNicknameModal(true);
   };
-
+  
   const handleSaveNickname = async () => {
     if (!deviceId) {
       alert("Device ID not loaded. Please wait a moment and try again.");
@@ -115,15 +119,14 @@ export default function Settings() {
       return;
     }
 
+    const newNickname = tempNickname.trim();
+    if (!deviceId) {
+      alert("Device ID not loaded. Please wait a moment and try again.");
+      return;
+    }
+
     try {
       setSavingNickname(true);
-      console.log(
-        "Saving nickname:",
-        tempNickname.trim(),
-        "for deviceId:",
-        deviceId,
-      );
-
       const response = await fetch("/api/user/profile", {
         method: "POST",
         headers: {
@@ -131,20 +134,16 @@ export default function Settings() {
         },
         body: JSON.stringify({
           uuid: deviceId,
-          nickname: tempNickname.trim(),
+          nickname: newNickname,
         }),
       });
-
-      console.log("Response status:", response.status);
 
       if (!response.ok) {
         let errorMessage = "Failed to save nickname";
         try {
           const error = await response.json();
-          console.error("API error response:", error);
           errorMessage = error.error || errorMessage;
         } catch (parseError) {
-          console.error("Error parsing error response:", parseError);
           const textError = await response.text();
           console.error("Raw error response:", textError);
         }
@@ -152,15 +151,15 @@ export default function Settings() {
       }
 
       const data = await response.json();
-      console.log("Successfully saved nickname:", data);
       setNickname(data.nickname);
-      setEditingNickname(false);
-      alert("Nickname saved successfully!"); // Add success feedback
+      setShowNicknameModal(false);
+      setTempNickname("");
+      alert("Nickname saved successfully!");
     } catch (error) {
       console.error("Error saving nickname:", error);
       alert(
         error.message ||
-          "Failed to save nickname. Please check your connection and try again.",
+          "Failed to save nickname. Please check your connection and try again."
       );
     } finally {
       setSavingNickname(false);
@@ -169,8 +168,9 @@ export default function Settings() {
 
   const handleCancelEdit = () => {
     setTempNickname("");
-    setEditingNickname(false);
+    setShowNicknameModal(false);
   };
+
 
   const handleDeleteAccount = async () => {
     console.log("User confirmed account deletion");
@@ -226,6 +226,8 @@ export default function Settings() {
           paddingBottom: insets.bottom + 40,
         }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         {/* Home icon - top left */}
         <TouchableOpacity
@@ -302,9 +304,9 @@ export default function Settings() {
             borderRadius: 16,
             padding: 24,
             borderWidth:
-              !loadingNickname && !nickname && !editingNickname ? 3 : 2,
+              !loadingNickname && !nickname ? 3 : 2,
             borderColor:
-              !loadingNickname && !nickname && !editingNickname
+              !loadingNickname && !nickname
                 ? borderColor
                 : "#333333",
           }}
@@ -326,94 +328,60 @@ export default function Settings() {
             >
               NICKNAME {!loadingNickname && !nickname && "⚠️"}
             </Text>
-            {!editingNickname && !loadingNickname && (
-              <TouchableOpacity onPress={handleEditNickname}>
-                <Edit2 size={20} color="#7B68EE" />
-              </TouchableOpacity>
-            )}
           </View>
 
           {loadingNickname ? (
             <ActivityIndicator size="small" color="#7B68EE" />
-          ) : editingNickname ? (
+          ) : (
             <>
-              <TextInput
-                value={tempNickname}
-                onChangeText={setTempNickname}
-                placeholder="Enter your nickname"
-                placeholderTextColor="#666666"
+              <TouchableOpacity
+                onPress={handleEditNickname}
+                activeOpacity={0.7}
+                disabled={loadingNickname}
                 style={{
-                  fontSize: 16,
-                  color: "#FFFFFF",
-                  backgroundColor: "#2A2A2A",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingVertical: 12,
+                  paddingHorizontal: 12,
+                  backgroundColor: nickname ? "#2A2A2A" : "transparent",
                   borderRadius: 8,
-                  padding: 12,
-                  borderWidth: 1,
+                  borderWidth: nickname ? 1 : 0,
                   borderColor: "#444444",
                   marginBottom: 12,
                 }}
-                maxLength={50}
-                autoFocus
-              />
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <TouchableOpacity
-                  onPress={handleSaveNickname}
-                  disabled={savingNickname}
-                  style={{
-                    flex: 1,
-                    backgroundColor: "#7B68EE",
-                    borderRadius: 8,
-                    paddingVertical: 10,
-                    alignItems: "center",
-                    opacity: savingNickname ? 0.6 : 1,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontWeight: "700",
-                      color: "#FFFFFF",
-                    }}
-                  >
-                    {savingNickname ? "Saving..." : "Save"}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleCancelEdit}
-                  disabled={savingNickname}
-                  style={{
-                    flex: 1,
-                    backgroundColor: "#2A2A2A",
-                    borderRadius: 8,
-                    paddingVertical: 10,
-                    alignItems: "center",
-                    borderWidth: 1,
-                    borderColor: "#444444",
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontWeight: "700",
-                      color: "#FFFFFF",
-                    }}
-                  >
-                    Cancel
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          ) : (
-            <>
-              <Text
-                style={{
-                  fontSize: 16,
-                  color: "#FFFFFF",
-                  lineHeight: 24,
-                }}
               >
-                {nickname || "Not set"}
-              </Text>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    color: "#FFFFFF",
+                    lineHeight: 24,
+                    flex: 1,
+                  }}
+                >
+                  {nickname || "Not set - Tap to add nickname"}
+                </Text>
+                {!loadingNickname && (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <Edit2 size={16} color="#7B68EE" />
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        color: "#7B68EE",
+                        fontWeight: "600",
+                      }}
+                    >
+                      Edit
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
               <View
                 style={{
                   height: 1,
@@ -424,14 +392,14 @@ export default function Settings() {
               <Text
                 style={{
                   fontSize: 14,
-                  color: !nickname ? "#FFD700" : "#999999", // Gold text when not set
+                  color: !nickname ? "#FFD700" : "#999999",
                   lineHeight: 20,
                   fontWeight: !nickname ? "600" : "400",
                 }}
               >
                 {!nickname
-                  ? "👆 Tap the edit icon above to set your nickname and appear on the leaderboard with your custom name!"
-                  : "This is how you'll appear on the leaderboard. If not set, a shortened version of your device ID will be shown."}
+                  ? "👆 Tap above to set your nickname and appear on the leaderboard with your custom name!"
+                  : "Tap 'Edit' above to change your nickname. This is how you'll appear on the leaderboard."}
               </Text>
             </>
           )}
@@ -699,6 +667,126 @@ export default function Settings() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Edit Nickname Modal - Simple and Stable */}
+      <Modal
+        visible={showNicknameModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCancelEdit}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={handleCancelEdit}
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0, 0, 0, 0.9)",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: 20,
+            }}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+              style={{
+                backgroundColor: "#1A1A1A",
+                borderRadius: 24,
+                padding: 30,
+                width: "100%",
+                maxWidth: 400,
+                borderWidth: 2,
+                borderColor: "#7B68EE",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 24,
+                  fontWeight: "900",
+                  color: "#FFFFFF",
+                  textAlign: "center",
+                  marginBottom: 20,
+                }}
+              >
+                Edit Nickname
+              </Text>
+
+              <TextInput
+                value={tempNickname}
+                onChangeText={setTempNickname}
+                placeholder="Enter your nickname"
+                placeholderTextColor="#666666"
+                style={{
+                  fontSize: 16,
+                  color: "#FFFFFF",
+                  backgroundColor: "#2A2A2A",
+                  borderRadius: 8,
+                  padding: 12,
+                  borderWidth: 1,
+                  borderColor: "#444444",
+                  marginBottom: 20,
+                }}
+                maxLength={50}
+                editable={!savingNickname}
+                returnKeyType="done"
+                onSubmitEditing={handleSaveNickname}
+              />
+
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <TouchableOpacity
+                  onPress={handleSaveNickname}
+                  disabled={savingNickname}
+                  style={{
+                    flex: 1,
+                    backgroundColor: "#7B68EE",
+                    borderRadius: 12,
+                    paddingVertical: 16,
+                    alignItems: "center",
+                    opacity: savingNickname ? 0.6 : 1,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 18,
+                      fontWeight: "700",
+                      color: "#FFFFFF",
+                    }}
+                  >
+                    {savingNickname ? "Saving..." : "Save"}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleCancelEdit}
+                  disabled={savingNickname}
+                  style={{
+                    flex: 1,
+                    backgroundColor: "transparent",
+                    borderWidth: 2,
+                    borderColor: "#333333",
+                    borderRadius: 12,
+                    paddingVertical: 16,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 18,
+                      fontWeight: "700",
+                      color: "#FFFFFF",
+                    }}
+                  >
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Delete Confirmation Modal */}
       <Modal

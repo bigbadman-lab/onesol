@@ -70,6 +70,8 @@ export default function Home() {
 
       if (error.message === "OFFLINE") {
         setShowOfflineModal(true);
+      } else if (error.message.includes("No trades are currently available")) {
+        alert("No trades are currently available. Please try again later.");
       } else {
         alert("Failed to start game. Please try again.");
       }

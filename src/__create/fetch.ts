@@ -9,8 +9,8 @@ const getURLFromArgs = (...args: Parameters<typeof fetch>) => {
   let url: string | null;
   if (typeof urlArg === 'string') {
     url = urlArg;
-  } else if (typeof urlArg === 'object' && urlArg !== null) {
-    url = urlArg.url;
+  } else if (typeof urlArg === 'object' && urlArg !== null && 'url' in urlArg) {
+    url = (urlArg as { url: string }).url;
   } else {
     url = null;
   }
@@ -36,6 +36,12 @@ type Params = Parameters<typeof expoFetch>;
 const fetchToWeb = async function fetchWithHeaders(...args: Params) {
   const firstPartyURL = process.env.EXPO_PUBLIC_BASE_URL;
   const secondPartyURL = process.env.EXPO_PUBLIC_PROXY_BASE_URL;
+  
+  // Debug: Log env vars on first fetch to verify they're loaded
+  if (!firstPartyURL && !secondPartyURL) {
+    console.warn('[Fetch] WARNING: EXPO_PUBLIC_BASE_URL and EXPO_PUBLIC_PROXY_BASE_URL are not set!');
+    console.warn('[Fetch] Available env vars:', Object.keys(process.env).filter(k => k.startsWith('EXPO_PUBLIC')));
+  }
   
   const [input, init] = args;
   const url = getURLFromArgs(input, init);
@@ -69,6 +75,11 @@ const fetchToWeb = async function fetchWithHeaders(...args: Params) {
     }
     const baseURL = isSecondPartyURL(url) ? secondPartyURL : firstPartyURL;
     finalInput = `${baseURL}${input}`;
+    console.log('[Fetch] Converted relative URL:', {
+      original: input,
+      baseURL,
+      final: finalInput,
+    });
   } else if (typeof input !== 'string') {
     return expoFetch(input, init);
   }
@@ -105,6 +116,29 @@ const fetchToWeb = async function fetchWithHeaders(...args: Params) {
   if (auth) {
     finalHeaders.set('authorization', `Bearer ${auth.jwt}`);
   }
+
+  // Log the final request details for debugging
+  const allHeaders: Record<string, string> = {};
+  finalHeaders.forEach((value, key) => {
+    allHeaders[key] = value;
+  });
+  
+  console.log('[Fetch] Making request:', {
+    url: finalInput,
+    method: init?.method || 'GET',
+    hasBody: !!init?.body,
+    bodyPreview: init?.body ? (typeof init.body === 'string' ? init.body.substring(0, 100) : 'object') : undefined,
+    headers: allHeaders,
+    headerCount: Object.keys(allHeaders).length,
+    hasAuth: !!allHeaders.authorization,
+    hasProjectGroupId: !!allHeaders['x-createxyz-project-group-id'],
+    hasHost: !!allHeaders.host,
+    envVars: {
+      hasBaseURL: !!firstPartyURL,
+      hasProjectGroupId: !!process.env.EXPO_PUBLIC_PROJECT_GROUP_ID,
+      hasHost: !!process.env.EXPO_PUBLIC_HOST,
+    },
+  });
 
   return expoFetch(finalInput, {
     ...init,
