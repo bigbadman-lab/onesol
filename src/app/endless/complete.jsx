@@ -18,7 +18,7 @@ import useDeviceId from "../../utils/useDeviceId";
 export default function EndlessComplete() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { deviceId } = useDeviceId();
+  const { deviceId, friendlyName } = useDeviceId();
 
   const balance = useGameStore((state) => state.endlessModeBalance);
   const tradeCount = useGameStore((state) => state.endlessModeTradeCount);
@@ -69,6 +69,7 @@ export default function EndlessComplete() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             uuid: deviceId,
+            friendly_name: friendlyName, // Include friendly name for leaderboard display
             final_sol: balance,
             correct_count: correctCount,
           }),
@@ -85,7 +86,7 @@ export default function EndlessComplete() {
     };
 
     submitScore();
-  }, [deviceId, balance, correctCount, hasSubmitted, isSubmitting]);
+  }, [deviceId, friendlyName, balance, correctCount, hasSubmitted, isSubmitting]);
 
   const handlePlayAgain = async () => {
     await startEndlessMode();

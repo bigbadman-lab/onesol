@@ -36,3 +36,33 @@ app-example
 
 caches/
 public/
+
+# iOS build artifacts (regenerated during build)
+ios/build/
+ios/Pods/
+ios/**/xcuserdata/
+ios/**/*.xcworkspace/xcuserdata/
+ios/**/*.xcodeproj/xcuserdata/
+
+# Web assets (not needed for iOS builds)
+polyfills/web/
+
+# Git
+.git/
+.gitignore
+
+# Large source maps and debug files
+*.map
+*.log
+
+# Documentation
+README.md
+*.md
+
+# Test files
+__tests__/
+**/*.test.*
+**/*.spec.*
+
+# Note: __create/ and src/__create/ are required for metro.config.js and app initialization
+# Do not exclude them
