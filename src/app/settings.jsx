@@ -4,7 +4,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
-  BackHandler,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -31,44 +31,81 @@ export default function Settings() {
   const handleDeleteAccount = async () => {
     console.log("User confirmed account deletion");
     setIsDeleting(true);
+    
+    // Add timeout to prevent hanging
+    const timeoutId = setTimeout(() => {
+      setIsDeleting(false);
+      setShowDeleteModal(false);
+      alert("Request timed out. Please check your connection and try again.");
+    }, 10000); // 10 second timeout
+
     try {
       console.log("Sending delete request for deviceId:", deviceId);
 
-      // Delete data from database
+      // Delete data from database with timeout
+      const controller = new AbortController();
+      const fetchTimeout = setTimeout(() => controller.abort(), 8000); // 8 second fetch timeout
+
       const response = await fetch("/api/user/delete", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ uuid: deviceId }),
+        signal: controller.signal,
       });
+
+      clearTimeout(fetchTimeout);
 
       console.log("Delete API response status:", response.status);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Delete API error:", errorData);
-        throw new Error("Failed to delete account data");
+        let errorMessage = "Failed to delete account data";
+        try {
+          const errorData = await response.json();
+          console.error("Delete API error:", errorData);
+          errorMessage = errorData.error || errorMessage;
+        } catch (parseError) {
+          console.error("Error parsing error response:", parseError);
+        }
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
       console.log("Delete API success:", result);
 
-      // Clear device ID from secure store - use correct key
-      console.log("Clearing device_uuid from SecureStore...");
-      await SecureStore.deleteItemAsync("device_uuid");
-      await SecureStore.deleteItemAsync("device_friendly_name");
-      console.log("SecureStore cleared successfully");
+      // Clear all user data from secure store
+      console.log("Clearing all user data from SecureStore...");
+      try {
+        await SecureStore.deleteItemAsync("device_uuid");
+        await SecureStore.deleteItemAsync("device_friendly_name");
+        await SecureStore.deleteItemAsync("user_consent_given");
+        console.log("SecureStore cleared successfully");
+      } catch (storeError) {
+        console.error("Error clearing SecureStore:", storeError);
+        // Continue anyway - we'll still navigate
+      }
 
-      // Exit the app
-      console.log("Exiting app...");
-      BackHandler.exitApp();
+      clearTimeout(timeoutId);
+      setIsDeleting(false);
+      setShowDeleteModal(false);
+
+      // Navigate to consent screen instead of trying to exit app
+      // This works on both iOS and Android
+      console.log("Navigating to consent screen...");
+      router.replace("/consent");
     } catch (error) {
+      clearTimeout(timeoutId);
       console.error("Error deleting account:", error);
       console.error("Error stack:", error.stack);
       setIsDeleting(false);
       setShowDeleteModal(false);
-      alert("Failed to delete account. Please try again.");
+      
+      if (error.name === "AbortError") {
+        alert("Request timed out. Please check your connection and try again.");
+      } else {
+        alert(`Failed to delete account: ${error.message || "Please try again."}`);
+      }
     }
   };
 
@@ -547,8 +584,14 @@ export default function Settings() {
                   paddingVertical: 16,
                   alignItems: "center",
                   opacity: isDeleting ? 0.6 : 1,
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  gap: 8,
                 }}
               >
+                {isDeleting && (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                )}
                 <Text
                   style={{
                     fontSize: 18,
