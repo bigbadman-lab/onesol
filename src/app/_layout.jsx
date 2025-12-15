@@ -35,7 +35,7 @@ export default function RootLayout() {
       if (!isReady || hasNavigated) return;
 
       try {
-        // Add timeout to prevent hanging
+        // Check consent immediately (no delay) to prevent flash
         const consentPromise = SecureStore.getItemAsync(CONSENT_KEY);
         const timeoutPromise = new Promise((resolve) => 
           setTimeout(() => resolve(null), 5000)
@@ -43,10 +43,8 @@ export default function RootLayout() {
         
         const consent = await Promise.race([consentPromise, timeoutPromise]);
 
-        // Wait minimum 2 seconds for branding
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-
-        // Navigate based on consent
+        // Navigate immediately based on consent (before hiding splash)
+        // This prevents any flash of the wrong screen
         try {
           if (consent === "true") {
             router.replace("/home");
@@ -61,7 +59,10 @@ export default function RootLayout() {
 
         setHasNavigated(true);
 
-        // Hide splash after navigation - always hide even if there's an error
+        // Wait minimum 2 seconds for branding (after navigation)
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        // Hide splash after navigation and branding delay
         try {
           await SplashScreen.hideAsync();
         } catch (splashError) {

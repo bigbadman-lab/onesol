@@ -98,8 +98,12 @@ export default function Home() {
         contentContainerStyle={{
           paddingTop: insets.top + 20,
           paddingBottom: insets.bottom + 40,
+          flexGrow: 1,
         }}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={true}
+        bounces={true}
+        nestedScrollEnabled={true}
       >
         {/* Settings icon - top left with notification badge */}
         <View
@@ -109,8 +113,12 @@ export default function Home() {
             left: 20,
             zIndex: 10,
           }}
+          pointerEvents="box-none"
         >
-          <TouchableOpacity onPress={() => router.push("/settings")}>
+          <TouchableOpacity 
+            onPress={() => router.push("/settings")}
+            activeOpacity={0.7}
+          >
             <Settings size={32} color="#FFFFFF" />
             {!hasNickname && (
               <View
@@ -125,6 +133,7 @@ export default function Home() {
                   borderWidth: 2,
                   borderColor: "#000000",
                 }}
+                pointerEvents="none"
               />
             )}
           </TouchableOpacity>
@@ -139,6 +148,7 @@ export default function Home() {
             right: 20,
             zIndex: 10,
           }}
+          activeOpacity={0.7}
         >
           <Trophy size={32} color="#FFFFFF" />
         </TouchableOpacity>
@@ -191,6 +201,7 @@ export default function Home() {
               paddingVertical: 16,
               paddingHorizontal: 30,
             }}
+            activeOpacity={0.8}
           >
             <Text
               style={{
@@ -222,6 +233,7 @@ export default function Home() {
         <TouchableOpacity
           style={{ marginTop: 80, alignItems: "center" }}
           onPress={() => setShowModal(true)}
+          activeOpacity={0.7}
         >
           <Text
             style={{

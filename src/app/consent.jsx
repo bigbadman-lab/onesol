@@ -36,8 +36,12 @@ export default function Consent() {
           paddingTop: insets.top + 40,
           paddingBottom: insets.bottom + 40,
           paddingHorizontal: 30,
+          flexGrow: 1,
         }}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={true}
+        bounces={true}
+        nestedScrollEnabled={true}
       >
         {/* Logo */}
         <View style={{ alignItems: "center", marginBottom: 40 }}>
@@ -195,6 +199,7 @@ export default function Consent() {
             marginBottom: 16,
             opacity: isAccepting ? 0.6 : 1,
           }}
+          activeOpacity={0.8}
         >
           <Text
             style={{
