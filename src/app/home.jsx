@@ -5,6 +5,7 @@ import {
   ScrollView,
   Modal,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -25,42 +26,22 @@ export default function Home() {
   const { deviceId } = useDeviceId();
 
   const [showModal, setShowModal] = useState(false);
-  const [hasNickname, setHasNickname] = useState(false);
   const [showOfflineModal, setShowOfflineModal] = useState(false);
+  const [isFindingTrades, setIsFindingTrades] = useState(false);
 
   const startEndlessMode = useGameStore((state) => state.startEndlessMode);
   const resetEndlessMode = useGameStore((state) => state.resetEndlessMode);
-
-  // Check if user has a nickname
-  useEffect(() => {
-    const checkNickname = async () => {
-      if (!deviceId) return;
-
-      try {
-        const response = await fetch(`/api/user/profile?uuid=${deviceId}`);
-        if (response.ok) {
-          const data = await response.json();
-          setHasNickname(!!data.nickname);
-        } else {
-          // If API fails, assume no nickname to show badge
-          setHasNickname(false);
-        }
-      } catch (error) {
-        console.error("Error checking nickname:", error);
-        // On error, assume no nickname to show badge
-        setHasNickname(false);
-      }
-    };
-
-    checkNickname();
-  }, [deviceId]);
 
   if (!loaded && !error) {
     return null;
   }
 
   const handleStartEndless = async () => {
+    if (isFindingTrades) return; // Prevent multiple clicks
+    
     console.log("User clicked Start Game");
+    setIsFindingTrades(true);
+    
     try {
       await startEndlessMode();
       console.log("Navigating to /endless/trade");
@@ -75,6 +56,8 @@ export default function Home() {
       } else {
         alert("Failed to start game. Please try again.");
       }
+    } finally {
+      setIsFindingTrades(false);
     }
   };
 
@@ -120,7 +103,7 @@ export default function Home() {
             activeOpacity={0.7}
           >
             <Settings size={32} color="#FFFFFF" />
-            {!hasNickname && (
+            {false && (
               <View
                 style={{
                   position: "absolute",
@@ -195,23 +178,32 @@ export default function Home() {
         <View style={{ paddingHorizontal: 30, marginTop: 60 }}>
           <TouchableOpacity
             onPress={handleStartEndless}
+            disabled={isFindingTrades}
             style={{
-              backgroundColor: "#F5F5F5",
+              backgroundColor: isFindingTrades ? "#7B68EE" : "#F5F5F5",
               borderRadius: 16,
               paddingVertical: 16,
               paddingHorizontal: 30,
+              opacity: isFindingTrades ? 0.9 : 1,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 12,
             }}
             activeOpacity={0.8}
           >
+            {isFindingTrades && (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            )}
             <Text
               style={{
                 fontSize: 24,
                 fontWeight: "900",
-                color: "#000000",
+                color: isFindingTrades ? "#FFFFFF" : "#000000",
                 textAlign: "center",
               }}
             >
-              Start Game →
+              {isFindingTrades ? "Finding Trades..." : "Start Game →"}
             </Text>
           </TouchableOpacity>
           <Text

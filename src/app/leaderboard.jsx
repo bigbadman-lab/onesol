@@ -23,27 +23,10 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  const [hasNickname, setHasNickname] = useState(true); // assume true initially to avoid flashing badge
 
   useEffect(() => {
     fetchLeaderboard();
-    checkNickname();
   }, []);
-
-  // Check if user has a nickname
-  const checkNickname = async () => {
-    if (!deviceId) return;
-
-    try {
-      const response = await fetch(`/api/user/profile?uuid=${deviceId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setHasNickname(!!data.nickname);
-      }
-    } catch (error) {
-      console.error("Error checking nickname:", error);
-    }
-  };
 
   const fetchLeaderboard = async () => {
     try {
@@ -94,8 +77,11 @@ export default function Leaderboard() {
 
   const getDisplayName = (entry) => {
     if (!entry) return "Unknown User";
+    // Use nickname if available (for backward compatibility)
     if (entry.nickname) return entry.nickname;
-    // Show shortened UUID if no nickname
+    // Use friendly_name if available (new system)
+    if (entry.friendly_name) return entry.friendly_name;
+    // Fallback to shortened UUID if no friendly name
     if (entry.uuid) {
       return `User-${entry.uuid.slice(0, 8)}`;
     }
@@ -153,7 +139,7 @@ export default function Leaderboard() {
         >
           <TouchableOpacity onPress={() => router.push("/settings")}>
             <Settings size={32} color="#FFFFFF" />
-            {!hasNickname && (
+            {false && (
               <View
                 style={{
                   position: "absolute",

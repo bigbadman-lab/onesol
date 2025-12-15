@@ -29,20 +29,20 @@ export default function Consent() {
   return (
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
       <StatusBar style="light" />
-
+      
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingTop: insets.top + 40,
-          paddingBottom: insets.bottom + 40,
+          paddingBottom: insets.bottom + 100,
           paddingHorizontal: 30,
-          flexGrow: 1,
         }}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
         scrollEnabled={true}
         bounces={true}
         nestedScrollEnabled={true}
       >
+        
         {/* Logo */}
         <View style={{ alignItems: "center", marginBottom: 40 }}>
           <Image

@@ -5,12 +5,6 @@ import {
   ScrollView,
   Modal,
   BackHandler,
-  TextInput,
-  ActivityIndicator,
-  Animated,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -19,158 +13,20 @@ import {
   X,
   ExternalLink,
   Trash2,
-  Edit2,
-  Check,
   Home,
 } from "lucide-react-native";
 import * as Linking from "expo-linking";
 import useDeviceId from "../utils/useDeviceId";
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import * as SecureStore from "expo-secure-store";
 import { Image } from "expo-image";
 
 export default function Settings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { deviceId } = useDeviceId();
+  const { deviceId, friendlyName } = useDeviceId();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  // Nickname state - minimal
-  const [nickname, setNickname] = useState("");
-  const [showNicknameModal, setShowNicknameModal] = useState(false);
-  const [tempNickname, setTempNickname] = useState("");
-  const [loadingNickname, setLoadingNickname] = useState(true);
-  const [savingNickname, setSavingNickname] = useState(false);
-
-  // Pulsing animation for nickname card when empty
-  const pulseAnim = useRef(new Animated.Value(0)).current;
-
-  // Load nickname on mount
-  useEffect(() => {
-    if (deviceId) {
-      loadNickname();
-    }
-  }, [deviceId]);
-
-  // Start pulsing animation when nickname is empty
-  useEffect(() => {
-    if (!loadingNickname && !nickname) {
-      // Create a looping pulse animation
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: false,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 0,
-            duration: 1000,
-            useNativeDriver: false,
-          }),
-        ]),
-      ).start();
-    } else {
-      pulseAnim.setValue(0);
-    }
-  }, [loadingNickname, nickname]);
-
-  // Interpolate border color for pulsing effect
-  const borderColor = pulseAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["#7B68EE", "#A593FF"], // Pulse between purple and brighter purple
-  });
-
-  const loadNickname = async () => {
-    try {
-      setLoadingNickname(true);
-      const response = await fetch(`/api/user/profile?uuid=${deviceId}`);
-      if (!response.ok) throw new Error("Failed to fetch profile");
-
-      const data = await response.json();
-      setNickname(data.nickname || "");
-    } catch (error) {
-      console.error("Error loading nickname:", error);
-    } finally {
-      setLoadingNickname(false);
-    }
-  };
-
-  const handleEditNickname = () => {
-    if (loadingNickname) return;
-    setTempNickname(nickname || "");
-    setShowNicknameModal(true);
-  };
-  
-  const handleSaveNickname = async () => {
-    if (!deviceId) {
-      alert("Device ID not loaded. Please wait a moment and try again.");
-      return;
-    }
-
-    if (!tempNickname.trim()) {
-      alert("Nickname cannot be empty");
-      return;
-    }
-
-    if (tempNickname.length > 50) {
-      alert("Nickname must be 50 characters or less");
-      return;
-    }
-
-    const newNickname = tempNickname.trim();
-    if (!deviceId) {
-      alert("Device ID not loaded. Please wait a moment and try again.");
-      return;
-    }
-
-    try {
-      setSavingNickname(true);
-      const response = await fetch("/api/user/profile", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          uuid: deviceId,
-          nickname: newNickname,
-        }),
-      });
-
-      if (!response.ok) {
-        let errorMessage = "Failed to save nickname";
-        try {
-          const error = await response.json();
-          errorMessage = error.error || errorMessage;
-        } catch (parseError) {
-          const textError = await response.text();
-          console.error("Raw error response:", textError);
-        }
-        throw new Error(errorMessage);
-      }
-
-      const data = await response.json();
-      setNickname(data.nickname);
-      setShowNicknameModal(false);
-      setTempNickname("");
-      alert("Nickname saved successfully!");
-    } catch (error) {
-      console.error("Error saving nickname:", error);
-      alert(
-        error.message ||
-          "Failed to save nickname. Please check your connection and try again."
-      );
-    } finally {
-      setSavingNickname(false);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setTempNickname("");
-    setShowNicknameModal(false);
-  };
-
 
   const handleDeleteAccount = async () => {
     console.log("User confirmed account deletion");
@@ -201,6 +57,7 @@ export default function Settings() {
       // Clear device ID from secure store - use correct key
       console.log("Clearing device_uuid from SecureStore...");
       await SecureStore.deleteItemAsync("device_uuid");
+      await SecureStore.deleteItemAsync("device_friendly_name");
       console.log("SecureStore cleared successfully");
 
       // Exit the app
@@ -295,115 +152,55 @@ export default function Settings() {
           </TouchableOpacity>
         </View>
 
-        {/* Nickname Card with pulsing animation when empty */}
-        <Animated.View
+        {/* Your Name Card */}
+        <View
           style={{
             marginHorizontal: 20,
             marginTop: 60,
             backgroundColor: "#1A1A1A",
             borderRadius: 16,
             padding: 24,
-            borderWidth:
-              !loadingNickname && !nickname ? 3 : 2,
-            borderColor:
-              !loadingNickname && !nickname
-                ? borderColor
-                : "#333333",
+            borderWidth: 2,
+            borderColor: "#7B68EE",
           }}
         >
-          <View
+          <Text
             style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
+              fontSize: 18,
+              fontWeight: "700",
+              color: "#7B68EE",
               marginBottom: 16,
             }}
           >
-            <Text
-              style={{
-                fontSize: 18,
-                fontWeight: "700",
-                color: "#7B68EE",
-              }}
-            >
-              NICKNAME {!loadingNickname && !nickname && "⚠️"}
-            </Text>
-          </View>
-
-          {loadingNickname ? (
-            <ActivityIndicator size="small" color="#7B68EE" />
-          ) : (
-            <>
-              <TouchableOpacity
-                onPress={handleEditNickname}
-                activeOpacity={0.7}
-                disabled={loadingNickname}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  paddingVertical: 12,
-                  paddingHorizontal: 12,
-                  backgroundColor: nickname ? "#2A2A2A" : "transparent",
-                  borderRadius: 8,
-                  borderWidth: nickname ? 1 : 0,
-                  borderColor: "#444444",
-                  marginBottom: 12,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 16,
-                    color: "#FFFFFF",
-                    lineHeight: 24,
-                    flex: 1,
-                  }}
-                >
-                  {nickname || "Not set - Tap to add nickname"}
-                </Text>
-                {!loadingNickname && (
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 6,
-                    }}
-                  >
-                    <Edit2 size={16} color="#7B68EE" />
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        color: "#7B68EE",
-                        fontWeight: "600",
-                      }}
-                    >
-                      Edit
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              <View
-                style={{
-                  height: 1,
-                  backgroundColor: "#333333",
-                  marginVertical: 16,
-                }}
-              />
-              <Text
-                style={{
-                  fontSize: 14,
-                  color: !nickname ? "#FFD700" : "#999999",
-                  lineHeight: 20,
-                  fontWeight: !nickname ? "600" : "400",
-                }}
-              >
-                {!nickname
-                  ? "👆 Tap above to set your nickname and appear on the leaderboard with your custom name!"
-                  : "Tap 'Edit' above to change your nickname. This is how you'll appear on the leaderboard."}
-              </Text>
-            </>
-          )}
-        </Animated.View>
+            YOUR NAME
+          </Text>
+          <Text
+            style={{
+              fontSize: 20,
+              color: "#FFFFFF",
+              lineHeight: 28,
+              fontWeight: "600",
+            }}
+          >
+            {friendlyName || "Loading..."}
+          </Text>
+          <View
+            style={{
+              height: 1,
+              backgroundColor: "#333333",
+              marginVertical: 16,
+            }}
+          />
+          <Text
+            style={{
+              fontSize: 14,
+              color: "#999999",
+              lineHeight: 20,
+            }}
+          >
+            This is your friendly name that appears on the leaderboard. It's automatically generated and stored securely on your device.
+          </Text>
+        </View>
 
         {/* Device ID Card */}
         <View
@@ -667,126 +464,6 @@ export default function Settings() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-
-      {/* Edit Nickname Modal - Simple and Stable */}
-      <Modal
-        visible={showNicknameModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={handleCancelEdit}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
-        >
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={handleCancelEdit}
-            style={{
-              flex: 1,
-              backgroundColor: "rgba(0, 0, 0, 0.9)",
-              justifyContent: "center",
-              alignItems: "center",
-              padding: 20,
-            }}
-          >
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={(e) => e.stopPropagation()}
-              style={{
-                backgroundColor: "#1A1A1A",
-                borderRadius: 24,
-                padding: 30,
-                width: "100%",
-                maxWidth: 400,
-                borderWidth: 2,
-                borderColor: "#7B68EE",
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 24,
-                  fontWeight: "900",
-                  color: "#FFFFFF",
-                  textAlign: "center",
-                  marginBottom: 20,
-                }}
-              >
-                Edit Nickname
-              </Text>
-
-              <TextInput
-                value={tempNickname}
-                onChangeText={setTempNickname}
-                placeholder="Enter your nickname"
-                placeholderTextColor="#666666"
-                style={{
-                  fontSize: 16,
-                  color: "#FFFFFF",
-                  backgroundColor: "#2A2A2A",
-                  borderRadius: 8,
-                  padding: 12,
-                  borderWidth: 1,
-                  borderColor: "#444444",
-                  marginBottom: 20,
-                }}
-                maxLength={50}
-                editable={!savingNickname}
-                returnKeyType="done"
-                onSubmitEditing={handleSaveNickname}
-              />
-
-              <View style={{ flexDirection: "row", gap: 12 }}>
-                <TouchableOpacity
-                  onPress={handleSaveNickname}
-                  disabled={savingNickname}
-                  style={{
-                    flex: 1,
-                    backgroundColor: "#7B68EE",
-                    borderRadius: 12,
-                    paddingVertical: 16,
-                    alignItems: "center",
-                    opacity: savingNickname ? 0.6 : 1,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      fontWeight: "700",
-                      color: "#FFFFFF",
-                    }}
-                  >
-                    {savingNickname ? "Saving..." : "Save"}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleCancelEdit}
-                  disabled={savingNickname}
-                  style={{
-                    flex: 1,
-                    backgroundColor: "transparent",
-                    borderWidth: 2,
-                    borderColor: "#333333",
-                    borderRadius: 12,
-                    paddingVertical: 16,
-                    alignItems: "center",
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      fontWeight: "700",
-                      color: "#FFFFFF",
-                    }}
-                  >
-                    Cancel
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </KeyboardAvoidingView>
-      </Modal>
 
       {/* Delete Confirmation Modal */}
       <Modal
