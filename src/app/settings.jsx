@@ -28,18 +28,6 @@ export default function Settings() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleResetOnboarding = async () => {
-    try {
-      await SecureStore.deleteItemAsync("onboarding_completed");
-      alert("Onboarding reset! The app will restart to show onboarding screens.");
-      // Navigate to onboarding
-      router.replace("/onboarding");
-    } catch (error) {
-      console.error("Error resetting onboarding:", error);
-      alert("Failed to reset onboarding. Please try again.");
-    }
-  };
-
   const handleDeleteAccount = async () => {
     console.log("User confirmed account deletion");
     setIsDeleting(true);
@@ -197,30 +185,6 @@ export default function Settings() {
               }}
             >
               Return Home
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Dev: Reset Onboarding Button */}
-        <View style={{ marginHorizontal: 20, marginTop: 20 }}>
-          <TouchableOpacity
-            onPress={handleResetOnboarding}
-            style={{
-              backgroundColor: "#FF6B6B",
-              borderRadius: 16,
-              paddingVertical: 12,
-              paddingHorizontal: 24,
-              alignItems: "center",
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: "600",
-                color: "#FFFFFF",
-              }}
-            >
-              🔄 Reset Onboarding (Dev)
             </Text>
           </TouchableOpacity>
         </View>
