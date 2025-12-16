@@ -20,7 +20,7 @@ export default function OnboardingScreen1({ onNext }) {
     >
       {/* Background Image */}
       <Image
-        source={require("../../../assets/images/onboarding-1-bg.jpg")}
+        source={require("../../../assets/images/onboarding-2-bg.jpg")}
         style={[StyleSheet.absoluteFill, { opacity: 0.18 }]}
         contentFit="cover"
         transition={100}

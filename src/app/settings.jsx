@@ -80,6 +80,7 @@ export default function Settings() {
         await SecureStore.deleteItemAsync("device_uuid");
         await SecureStore.deleteItemAsync("device_friendly_name");
         await SecureStore.deleteItemAsync("user_consent_given");
+        await SecureStore.deleteItemAsync("onboarding_completed");
         console.log("SecureStore cleared successfully");
       } catch (storeError) {
         console.error("Error clearing SecureStore:", storeError);
@@ -90,10 +91,10 @@ export default function Settings() {
       setIsDeleting(false);
       setShowDeleteModal(false);
 
-      // Navigate to consent screen instead of trying to exit app
+      // Navigate to onboarding screen to restart the flow
       // This works on both iOS and Android
-      console.log("Navigating to consent screen...");
-      router.replace("/consent");
+      console.log("Navigating to onboarding screen...");
+      router.replace("/onboarding");
     } catch (error) {
       clearTimeout(timeoutId);
       console.error("Error deleting account:", error);
