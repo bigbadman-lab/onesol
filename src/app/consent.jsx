@@ -2,7 +2,6 @@ import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Image } from "expo-image";
 import { useState } from "react";
 import * as SecureStore from "expo-secure-store";
 
@@ -33,7 +32,7 @@ export default function Consent() {
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
-          paddingTop: insets.top + 40,
+          paddingTop: insets.top + 20,
           paddingBottom: insets.bottom + 100,
           paddingHorizontal: 30,
         }}
@@ -42,19 +41,6 @@ export default function Consent() {
         bounces={true}
         nestedScrollEnabled={true}
       >
-        
-        {/* Logo */}
-        <View style={{ alignItems: "center", marginBottom: 40 }}>
-          <Image
-            source={{
-              uri: "https://ucarecdn.com/70fd32ec-e6af-4285-8c52-e891f722b6f0/-/format/auto/",
-            }}
-            style={{ width: 250, height: 150 }}
-            contentFit="contain"
-            transition={100}
-          />
-        </View>
-
         {/* Title */}
         <Text
           style={{
@@ -63,6 +49,7 @@ export default function Consent() {
             color: "#FFFFFF",
             textAlign: "center",
             marginBottom: 20,
+            marginTop: 20,
           }}
         >
           Welcome to Memecoin Market Simulator

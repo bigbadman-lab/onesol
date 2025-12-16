@@ -9,6 +9,7 @@ import * as SecureStore from "expo-secure-store";
 SplashScreen.preventAutoHideAsync();
 
 const CONSENT_KEY = "user_consent_given";
+const ONBOARDING_KEY = "onboarding_completed";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,61 +32,87 @@ export default function RootLayout() {
   }, [initiate]);
 
   useEffect(() => {
-    async function checkConsent() {
-      if (!isReady || hasNavigated) return;
+    async function checkOnboardingAndConsent() {
+      if (hasNavigated) return;
 
-      try {
-        // Check consent immediately (no delay) to prevent flash
-        const consentPromise = SecureStore.getItemAsync(CONSENT_KEY);
-        const timeoutPromise = new Promise((resolve) => 
-          setTimeout(() => resolve(null), 5000)
-        );
-        
-        const consent = await Promise.race([consentPromise, timeoutPromise]);
+      // Add a timeout fallback - proceed after 1 second even if isReady is false
+      const timeoutId = setTimeout(async () => {
+        if (!hasNavigated) {
+          console.warn("Proceeding with navigation despite isReady state");
+          await performNavigation();
+        }
+      }, 1000);
 
-        // Navigate immediately based on consent (before hiding splash)
-        // This prevents any flash of the wrong screen
+      // If isReady is true, proceed immediately
+      if (isReady) {
+        clearTimeout(timeoutId);
+        await performNavigation();
+      }
+
+      async function performNavigation() {
+        if (hasNavigated) return;
+
         try {
-          if (consent === "true") {
-            router.replace("/home");
-          } else {
-            router.replace("/consent");
+          // Check onboarding and consent immediately (no delay) to prevent flash
+          const onboardingPromise = SecureStore.getItemAsync(ONBOARDING_KEY);
+          const consentPromise = SecureStore.getItemAsync(CONSENT_KEY);
+          const timeoutPromise = new Promise((resolve) => 
+            setTimeout(() => resolve(null), 5000)
+          );
+          
+          const [onboarding, consent] = await Promise.race([
+            Promise.all([onboardingPromise, consentPromise]),
+            timeoutPromise.then(() => [null, null])
+          ]);
+
+          // Navigate immediately based on onboarding and consent (before hiding splash)
+          // This prevents any flash of the wrong screen
+          try {
+            if (consent === "true") {
+              router.replace("/home");
+            } else if (onboarding === "true") {
+              router.replace("/consent");
+            } else {
+              router.replace("/onboarding");
+            }
+          } catch (navError) {
+            console.error("Navigation error:", navError);
+            // Fallback navigation
+            router.replace("/onboarding");
           }
-        } catch (navError) {
-          console.error("Navigation error:", navError);
-          // Fallback navigation
-          router.replace("/consent");
-        }
 
-        setHasNavigated(true);
+          setHasNavigated(true);
 
-        // Wait minimum 2 seconds for branding (after navigation)
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+          // Wait minimum 2 seconds for branding (after navigation)
+          await new Promise((resolve) => setTimeout(resolve, 2000));
 
-        // Hide splash after navigation and branding delay
-        try {
-          await SplashScreen.hideAsync();
-        } catch (splashError) {
-          console.error("Error hiding splash:", splashError);
-        }
-      } catch (error) {
-        console.error("Error checking consent:", error);
-        // Always try to navigate and hide splash, even on error
-        try {
-          router.replace("/consent");
-        } catch (navError) {
-          console.error("Failed to navigate on error:", navError);
-        }
-        setHasNavigated(true);
-        try {
-          await SplashScreen.hideAsync();
-        } catch (splashError) {
-          console.error("Error hiding splash on error:", splashError);
+          // Hide splash after navigation and branding delay
+          try {
+            await SplashScreen.hideAsync();
+          } catch (splashError) {
+            console.error("Error hiding splash:", splashError);
+          }
+        } catch (error) {
+          console.error("Error checking onboarding/consent:", error);
+          // Always try to navigate and hide splash, even on error
+          try {
+            router.replace("/onboarding");
+          } catch (navError) {
+            console.error("Failed to navigate on error:", navError);
+          }
+          setHasNavigated(true);
+          try {
+            await SplashScreen.hideAsync();
+          } catch (splashError) {
+            console.error("Error hiding splash on error:", splashError);
+          }
         }
       }
+
+      return () => clearTimeout(timeoutId);
     }
 
-    checkConsent();
+    checkOnboardingAndConsent();
   }, [isReady, hasNavigated, router]);
 
   return (
