@@ -89,8 +89,21 @@ export default function EndlessComplete() {
   }, [deviceId, friendlyName, balance, correctCount, hasSubmitted, isSubmitting]);
 
   const handlePlayAgain = async () => {
-    await startEndlessMode();
-    router.push("/endless/trade");
+    try {
+      await startEndlessMode();
+      router.push("/endless/trade");
+    } catch (error) {
+      console.error("Error starting new game:", error);
+      
+      if (error.message.includes("No trades are currently available")) {
+        alert("You've used all available trades today. New trades will be available tomorrow!");
+      } else if (error.message === "OFFLINE") {
+        alert("No internet connection. Please check your connection and try again.");
+      } else {
+        alert("Failed to start new game. Please try again.");
+      }
+      // Don't navigate - stay on complete page
+    }
   };
 
   return (

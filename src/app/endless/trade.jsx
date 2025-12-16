@@ -51,8 +51,21 @@ export default function EndlessTrade() {
       return;
     }
 
-    await submitTrade(choice);
-    router.push("/endless/result");
+    try {
+      await submitTrade(choice);
+      router.push("/endless/result");
+    } catch (error) {
+      console.error("Error submitting trade:", error);
+      
+      // If no trades available, end the game gracefully
+      if (error.message.includes("No trades are currently available")) {
+        router.push("/endless/complete");
+      } else if (error.message === "OFFLINE") {
+        alert("No internet connection. Please check your connection and try again.");
+      } else {
+        alert("Failed to submit trade. Please try again.");
+      }
+    }
   };
 
   const handleEndRun = () => {
