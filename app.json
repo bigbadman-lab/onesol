@@ -13,7 +13,8 @@
       "buildNumber": "10",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "CFBundleDisplayName": "One Sol"
+        "CFBundleDisplayName": "One Sol",
+        "UIBackgroundModes": []
       },
       "bundleIdentifier": "com.createinc.aeb5e7d736fa4b858559cd73dd97762d"
     },
@@ -23,10 +24,6 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
-      ],
       "package": "xyz.create.CreateExpoEnvironment"
     },
     "plugins": [
@@ -51,7 +48,6 @@
           }
         }
       ],
-      "expo-audio",
       [
         "expo-build-properties",
         {
@@ -63,8 +59,8 @@
       [
         "expo-video",
         {
-          "supportsBackgroundPlayback": true,
-          "supportsPictureInPicture": true
+          "supportsBackgroundPlayback": false,
+          "supportsPictureInPicture": false
         }
       ],
       "expo-font",
