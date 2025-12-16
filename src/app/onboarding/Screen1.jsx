@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, Dimensions } from "react-native";
+import { View, Text, TouchableOpacity, Dimensions, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
@@ -18,8 +18,17 @@ export default function OnboardingScreen1({ onNext }) {
         justifyContent: "center",
       }}
     >
+      {/* Background Image */}
+      <Image
+        source={require("../../../assets/images/onboarding-1-bg.jpg")}
+        style={[StyleSheet.absoluteFill, { opacity: 0.18 }]}
+        contentFit="cover"
+        transition={100}
+        pointerEvents="none"
+      />
+
       {/* All Content Centered */}
-      <View style={{ alignItems: "center" }}>
+      <View style={{ alignItems: "center", zIndex: 1 }}>
         {/* Top Heading */}
         <View style={{ alignItems: "center", marginBottom: 16 }}>
           <Text
