@@ -77,11 +77,13 @@ export default function Settings() {
       // Clear all user data from secure store
       console.log("Clearing all user data from SecureStore...");
       try {
-        await SecureStore.deleteItemAsync("device_uuid");
-        await SecureStore.deleteItemAsync("device_friendly_name");
-        await SecureStore.deleteItemAsync("user_consent_given");
-        await SecureStore.deleteItemAsync("onboarding_completed");
-        console.log("SecureStore cleared successfully");
+            await SecureStore.deleteItemAsync("device_uuid");
+            await SecureStore.deleteItemAsync("device_friendly_name");
+            await SecureStore.deleteItemAsync("user_consent_given");
+            await SecureStore.deleteItemAsync("onboarding_completed");
+            await SecureStore.deleteItemAsync("used_trade_ids_today"); // Clear trade ID tracking
+            await SecureStore.deleteItemAsync("last_trade_date"); // Clear trade date tracking
+            console.log("SecureStore cleared successfully");
       } catch (storeError) {
         console.error("Error clearing SecureStore:", storeError);
         // Continue anyway - we'll still navigate

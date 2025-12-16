@@ -77,15 +77,10 @@ export default function Leaderboard() {
 
   const getDisplayName = (entry) => {
     if (!entry) return "Unknown User";
-    // Use nickname if available (for backward compatibility)
-    if (entry.nickname) return entry.nickname;
-    // Use friendly_name if available (new system)
+    // Only show friendly_name - no UUID fallback
     if (entry.friendly_name) return entry.friendly_name;
-    // Fallback to shortened UUID if no friendly name
-    if (entry.uuid) {
-      return `User-${entry.uuid.slice(0, 8)}`;
-    }
-    return "Unknown User";
+    // If missing (legacy data or edge case), show anonymous
+    return "Anonymous";
   };
 
   const getRankDisplay = (index) => {

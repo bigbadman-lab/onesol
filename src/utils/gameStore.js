@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import { calculatePNL, STARTING_BALANCE } from "./tradesData";
 import { checkNetworkConnection } from "./useNetworkStatus";
 
@@ -147,6 +148,47 @@ const fetchRandomTrade = async (excludeIds = []) => {
     }
 };
 
+// SecureStore keys for trade ID persistence
+const USED_TRADE_IDS_KEY = "used_trade_ids_today";
+const LAST_TRADE_DATE_KEY = "last_trade_date";
+
+// Helper function to check and reset daily trade IDs
+const checkAndResetDaily = async () => {
+  try {
+    const lastDate = await SecureStore.getItemAsync(LAST_TRADE_DATE_KEY);
+    const today = new Date().toDateString();
+    
+    if (lastDate !== today) {
+      // New day - clear used trade IDs
+      await SecureStore.deleteItemAsync(USED_TRADE_IDS_KEY);
+      await SecureStore.setItemAsync(LAST_TRADE_DATE_KEY, today);
+      console.log("[checkAndResetDaily] New day detected, cleared used trade IDs");
+      return []; // Return empty array for new day
+    }
+    
+    // Same day - return stored IDs
+    const stored = await SecureStore.getItemAsync(USED_TRADE_IDS_KEY);
+    const usedIds = stored ? JSON.parse(stored) : [];
+    console.log("[checkAndResetDaily] Same day, loaded", usedIds.length, "used trade IDs");
+    return usedIds;
+  } catch (error) {
+    console.error("[checkAndResetDaily] Error:", error);
+    // On error, return empty array (safe fallback)
+    return [];
+  }
+};
+
+// Helper function to save used trade IDs to SecureStore
+const saveUsedTradeIds = async (usedIds) => {
+  try {
+    await SecureStore.setItemAsync(USED_TRADE_IDS_KEY, JSON.stringify(usedIds));
+    console.log("[saveUsedTradeIds] Saved", usedIds.length, "used trade IDs to SecureStore");
+  } catch (error) {
+    console.error("[saveUsedTradeIds] Error saving:", error);
+    // Non-critical error - continue even if save fails
+  }
+};
+
 const useGameStore = create((set, get) => ({
   // Endless mode state
   endlessModeActive: false,
@@ -164,17 +206,27 @@ const useGameStore = create((set, get) => ({
   startEndlessMode: async () => {
     console.log("Starting endless mode...");
     try {
-      const firstTrade = await fetchRandomTrade();
+      // Load previously used trade IDs from SecureStore (with daily reset check)
+      const previousUsedIds = await checkAndResetDaily();
+      
+      // Fetch first trade, excluding any previously used today
+      const firstTrade = await fetchRandomTrade(previousUsedIds);
       console.log("First trade loaded:", firstTrade?.id);
       
       if (!firstTrade || !firstTrade.id) {
         throw new Error("Invalid trade data received from server");
       }
 
-      // Prefetch second trade
+      // Update used IDs with the new trade
+      const newUsedIds = [...previousUsedIds, firstTrade.id];
+      
+      // Save to SecureStore immediately
+      await saveUsedTradeIds(newUsedIds);
+
+      // Prefetch second trade (excluding all used IDs including the new one)
       let secondTrade = null;
       try {
-        secondTrade = await fetchRandomTrade([firstTrade.id]);
+        secondTrade = await fetchRandomTrade(newUsedIds);
         console.log("Second trade prefetched:", secondTrade?.id);
       } catch (error) {
         console.warn("Failed to prefetch second trade:", error);
@@ -188,7 +240,7 @@ const useGameStore = create((set, get) => ({
         endlessModeResults: [],
         endlessModeCurrentTrade: firstTrade,
         endlessModeSelectedBet: null,
-        endlessModeUsedTradeIds: [firstTrade.id],
+        endlessModeUsedTradeIds: newUsedIds,
         endlessModeHasReset: false,
         endlessModeNextTrade: secondTrade,
       });
@@ -262,6 +314,11 @@ const useGameStore = create((set, get) => ({
       console.warn("Failed to prefetch next trade:", error);
     }
 
+    const newUsedIds = [...currentUsedIds, nextTrade.id];
+    
+    // Save updated used trade IDs to SecureStore
+    await saveUsedTradeIds(newUsedIds);
+
     set({
       endlessModeResults: [...state.endlessModeResults, result],
       endlessModeBalance: newBalance,
@@ -270,7 +327,7 @@ const useGameStore = create((set, get) => ({
         state.endlessModeCorrectCount + (isCorrect ? 1 : 0),
       endlessModeCurrentTrade: nextTrade,
       endlessModeSelectedBet: null,
-      endlessModeUsedTradeIds: [...currentUsedIds, nextTrade.id],
+      endlessModeUsedTradeIds: newUsedIds,
       endlessModeNextTrade: prefetchedNextTrade,
     });
   },
