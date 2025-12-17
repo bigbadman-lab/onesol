@@ -139,7 +139,7 @@ export default function Home() {
         </TouchableOpacity>
 
         {/* Hero Image at the top */}
-        <View style={{ alignItems: "center", marginTop: 20, marginBottom: 20 }}>
+        <View style={{ alignItems: "center", marginTop: 60, marginBottom: 20, paddingHorizontal: 20 }}>
           <Image
             source={require("../../assets/images/onesolmain.png")}
             style={{ width: 180, height: 120 }}
@@ -149,7 +149,7 @@ export default function Home() {
         </View>
 
         {/* Tagline */}
-        <View style={{ alignItems: "center", marginTop: 40 }}>
+        <View style={{ alignItems: "center", marginTop: 60 }}>
           <Text
             style={{
               fontSize: 48,
@@ -189,6 +189,11 @@ export default function Home() {
               alignItems: "center",
               justifyContent: "center",
               gap: 12,
+              shadowColor: "#000000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
             }}
             activeOpacity={0.8}
           >
@@ -209,29 +214,34 @@ export default function Home() {
           <Text
             style={{
               fontSize: 16,
-              color: "#FFFFFF",
+              color: "#CCCCCC",
               textAlign: "center",
               marginTop: 12,
             }}
           >
             Test your chart reading skills.
           </Text>
-          <Text style={{ fontSize: 16, color: "#FFFFFF", textAlign: "center" }}>
+          <Text style={{ fontSize: 16, color: "#CCCCCC", textAlign: "center" }}>
             Compete for the top spot.
           </Text>
         </View>
 
         {/* How it works */}
         <TouchableOpacity
-          style={{ marginTop: 80, alignItems: "center" }}
+          style={{
+            marginTop: 80,
+            alignItems: "center",
+            paddingVertical: 12,
+            paddingHorizontal: 24,
+          }}
           onPress={() => setShowModal(true)}
           activeOpacity={0.7}
         >
           <Text
             style={{
               fontSize: 18,
-              color: "#FFFFFF",
-              textDecorationLine: "underline",
+              color: "#CCCCCC",
+              fontWeight: "600",
             }}
           >
             How it works

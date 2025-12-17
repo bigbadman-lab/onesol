@@ -8,20 +8,17 @@ import {
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Settings, Trophy, Home, Share2 } from "lucide-react-native";
+import { Settings, Trophy, Home } from "lucide-react-native";
 import { Image } from "expo-image";
 import useGameStore from "../../utils/gameStore";
 import { STARTING_BALANCE } from "../../utils/tradesData";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import useDeviceId from "../../utils/useDeviceId";
-import { captureRef } from "react-native-view-shot";
-import * as Sharing from "expo-sharing";
 
 export default function EndlessComplete() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { deviceId, friendlyName } = useDeviceId();
-  const scoreCardRef = useRef(null);
 
   const balance = useGameStore((state) => state.endlessModeBalance);
   const tradeCount = useGameStore((state) => state.endlessModeTradeCount);
@@ -109,34 +106,6 @@ export default function EndlessComplete() {
     }
   };
 
-  const handleShare = async () => {
-    try {
-      if (!scoreCardRef.current) {
-        console.error("Score card ref not available");
-        return;
-      }
-
-      // Capture the score card as an image
-      const uri = await captureRef(scoreCardRef.current, {
-        format: "jpg",
-        quality: 0.9,
-      });
-
-      // Check if sharing is available
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (!isAvailable) {
-        alert("Sharing is not available on this device");
-        return;
-      }
-
-      // Share the image
-      await Sharing.shareAsync(uri);
-    } catch (error) {
-      console.error("Error sharing score:", error);
-      alert("Failed to share score. Please try again.");
-    }
-  };
-
   return (
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
       <StatusBar style="light" />
@@ -203,7 +172,6 @@ export default function EndlessComplete() {
 
         {/* Compact Performance Card */}
         <View
-          ref={scoreCardRef}
           style={{
             marginTop: 40,
             backgroundColor: "#1A1A1A",
@@ -364,37 +332,6 @@ export default function EndlessComplete() {
           </TouchableOpacity>
         </View>
 
-        {/* Share Button - Same styling as View Leaderboard */}
-        <View
-          style={{
-            alignItems: "center",
-            marginTop: 16,
-          }}
-        >
-          <TouchableOpacity
-            onPress={handleShare}
-            style={{
-              backgroundColor: "rgba(255, 255, 255, 0.1)",
-              borderRadius: 16,
-              paddingVertical: 16,
-              paddingHorizontal: 24,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <Share2 size={20} color="#FFFFFF" />
-            <Text
-              style={{
-                fontSize: 16,
-                fontWeight: "700",
-                color: "#FFFFFF",
-              }}
-            >
-              Share Score
-            </Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </View>
   );
