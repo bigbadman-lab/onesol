@@ -142,7 +142,7 @@ export default function Home() {
         <View style={{ alignItems: "center", marginTop: 20 }}>
           <Image
             source={require("../../assets/images/onesolmain.png")}
-            style={{ width: 300, height: 200 }}
+            style={{ width: 180, height: 120 }}
             contentFit="contain"
             transition={100}
           />
