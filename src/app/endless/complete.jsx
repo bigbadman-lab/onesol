@@ -118,8 +118,8 @@ export default function EndlessComplete() {
 
       // Capture the score card as an image
       const uri = await captureRef(scoreCardRef.current, {
-        format: "png",
-        quality: 1.0,
+        format: "jpg",
+        quality: 0.9,
       });
 
       // Check if sharing is available
