@@ -44,19 +44,6 @@ export default function OnboardingScreen3({ onNext }) {
           </Text>
         </View>
 
-        {/* Chart Name */}
-        <View style={{ width: width - 60, marginBottom: 12, alignItems: "flex-start" }}>
-          <Text
-            style={{
-              fontSize: 20,
-              fontWeight: "900",
-              color: "#FFFFFF",
-            }}
-          >
-            SIGMA
-          </Text>
-        </View>
-
         {/* Chart Area */}
         <View
           style={{
