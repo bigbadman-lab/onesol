@@ -141,9 +141,7 @@ export default function Home() {
         {/* Hero Image at the top */}
         <View style={{ alignItems: "center", marginTop: 20 }}>
           <Image
-            source={{
-              uri: "https://ucarecdn.com/70fd32ec-e6af-4285-8c52-e891f722b6f0/-/format/auto/",
-            }}
+            source={require("../../assets/images/onesolmain.png")}
             style={{ width: 300, height: 200 }}
             contentFit="contain"
             transition={100}
