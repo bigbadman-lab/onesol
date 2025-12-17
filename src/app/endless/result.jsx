@@ -20,6 +20,7 @@ export default function EndlessResult() {
   const balance = useGameStore((state) => state.endlessModeBalance);
   const results = useGameStore((state) => state.endlessModeResults);
   const tradeCount = useGameStore((state) => state.endlessModeTradeCount);
+  const currentTrade = useGameStore((state) => state.endlessModeCurrentTrade);
   const completeEndlessMode = useGameStore(
     (state) => state.completeEndlessMode,
   );
@@ -48,7 +49,8 @@ export default function EndlessResult() {
   const outcomeColor = lastResult.outcome === "RICH" ? "#00FF00" : "#FF0000";
 
   const handleNext = () => {
-    if (balance <= 0) {
+    // Check if there are more trades available by checking if current trade exists
+    if (balance <= 0 || !currentTrade) {
       router.push("/endless/complete");
     } else {
       router.push("/endless/trade");

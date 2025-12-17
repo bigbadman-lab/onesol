@@ -51,6 +51,8 @@ export default function Home() {
 
       if (error.message === "OFFLINE") {
         setShowOfflineModal(true);
+      } else if (error.message === "ALL_TRADES_USED_TODAY") {
+        alert("You have seen all available trades for today, they will reset at midnight");
       } else if (error.message.includes("No trades are currently available")) {
         alert("No trades are currently available. Please try again later.");
       } else {

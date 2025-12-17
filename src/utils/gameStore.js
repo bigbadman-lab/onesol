@@ -134,6 +134,23 @@ const fetchRandomTrade = async (excludeIds = []) => {
     
     const data = await response.json();
     console.log('[fetchRandomTrade] Success:', { tradeId: data?.id });
+    
+    // Validate the returned trade has an ID
+    if (!data || !data.id) {
+      console.error('[fetchRandomTrade] ERROR: API returned trade without ID');
+      throw new Error('NO_TRADES_AVAILABLE');
+    }
+    
+    // Log if the returned trade is in the exclude list (shouldn't happen, but log for debugging)
+    if (excludeIds.includes(data.id)) {
+      console.error('[fetchRandomTrade] WARNING: API returned a trade that should be excluded!', {
+        tradeId: data.id,
+        excludeIds: excludeIds,
+      });
+      // This is a server-side bug, but we'll handle it client-side
+      throw new Error('NO_TRADES_AVAILABLE');
+    }
+    
     return data;
     } catch (error) {
       console.error("[fetchRandomTrade] Error:", error);
@@ -158,6 +175,12 @@ const checkAndResetDaily = async () => {
     const lastDate = await SecureStore.getItemAsync(LAST_TRADE_DATE_KEY);
     const today = new Date().toDateString();
     
+    console.log("[checkAndResetDaily] Date check:", {
+      lastDate,
+      today,
+      isNewDay: lastDate !== today,
+    });
+    
     if (lastDate !== today) {
       // New day - clear used trade IDs
       await SecureStore.deleteItemAsync(USED_TRADE_IDS_KEY);
@@ -169,7 +192,7 @@ const checkAndResetDaily = async () => {
     // Same day - return stored IDs
     const stored = await SecureStore.getItemAsync(USED_TRADE_IDS_KEY);
     const usedIds = stored ? JSON.parse(stored) : [];
-    console.log("[checkAndResetDaily] Same day, loaded", usedIds.length, "used trade IDs");
+    console.log("[checkAndResetDaily] Same day, loaded", usedIds.length, "used trade IDs:", usedIds);
     return usedIds;
   } catch (error) {
     console.error("[checkAndResetDaily] Error:", error);
@@ -181,8 +204,17 @@ const checkAndResetDaily = async () => {
 // Helper function to save used trade IDs to SecureStore
 const saveUsedTradeIds = async (usedIds) => {
   try {
-    await SecureStore.setItemAsync(USED_TRADE_IDS_KEY, JSON.stringify(usedIds));
-    console.log("[saveUsedTradeIds] Saved", usedIds.length, "used trade IDs to SecureStore");
+    const serialized = JSON.stringify(usedIds);
+    await SecureStore.setItemAsync(USED_TRADE_IDS_KEY, serialized);
+    console.log("[saveUsedTradeIds] Saved", usedIds.length, "used trade IDs to SecureStore:", usedIds);
+    
+    // Verify it was saved correctly
+    const verify = await SecureStore.getItemAsync(USED_TRADE_IDS_KEY);
+    const verifyParsed = verify ? JSON.parse(verify) : [];
+    console.log("[saveUsedTradeIds] Verification - stored IDs:", verifyParsed);
+    if (verifyParsed.length !== usedIds.length) {
+      console.warn("[saveUsedTradeIds] WARNING: Saved count doesn't match! Expected:", usedIds.length, "Got:", verifyParsed.length);
+    }
   } catch (error) {
     console.error("[saveUsedTradeIds] Error saving:", error);
     // Non-critical error - continue even if save fails
@@ -208,10 +240,23 @@ const useGameStore = create((set, get) => ({
     try {
       // Load previously used trade IDs from SecureStore (with daily reset check)
       const previousUsedIds = await checkAndResetDaily();
+      console.log("[startEndlessMode] Loaded previousUsedIds:", previousUsedIds);
+      console.log("[startEndlessMode] Will exclude", previousUsedIds.length, "trade IDs when fetching first trade");
       
       // Fetch first trade, excluding any previously used today
-      const firstTrade = await fetchRandomTrade(previousUsedIds);
-      console.log("First trade loaded:", firstTrade?.id);
+      let firstTrade;
+      try {
+        firstTrade = await fetchRandomTrade(previousUsedIds);
+        console.log("First trade loaded:", firstTrade?.id);
+      } catch (error) {
+        // If no trades available, check if it's because all trades have been used today
+        if (error.message.includes("No trades are currently available") || 
+            error.message === 'NO_TRADES_AVAILABLE') {
+          console.log("[startEndlessMode] All trades have been used today");
+          throw new Error("ALL_TRADES_USED_TODAY");
+        }
+        throw error;
+      }
       
       if (!firstTrade || !firstTrade.id) {
         throw new Error("Invalid trade data received from server");
@@ -219,6 +264,12 @@ const useGameStore = create((set, get) => ({
 
       // Update used IDs with the new trade
       const newUsedIds = [...previousUsedIds, firstTrade.id];
+      console.log("[startEndlessMode] Updated used IDs:", {
+        previousCount: previousUsedIds.length,
+        newCount: newUsedIds.length,
+        addedTradeId: firstTrade.id,
+        allUsedIds: newUsedIds,
+      });
       
       // Save to SecureStore immediately
       await saveUsedTradeIds(newUsedIds);
@@ -265,6 +316,9 @@ const useGameStore = create((set, get) => ({
     } = state;
 
     if (!endlessModeCurrentTrade || !endlessModeSelectedBet) return;
+    
+    // Wrap in try-catch to ensure we clear state on error
+    try {
 
     const pnl = calculatePNL(
       endlessModeSelectedBet,
@@ -292,29 +346,109 @@ const useGameStore = create((set, get) => ({
 
     // Use prefetched trade if available, otherwise fetch
     let nextTrade = endlessModeNextTrade;
+    // IMPORTANT: Include the current trade being submitted in the exclude list
+    // This prevents the same trade from appearing again in the same session
+    const currentTradeId = endlessModeCurrentTrade.id;
     const currentUsedIds = [...state.endlessModeUsedTradeIds];
+    
+    // Ensure current trade is in the exclude list
+    const excludeIds = currentUsedIds.includes(currentTradeId) 
+      ? currentUsedIds 
+      : [...currentUsedIds, currentTradeId];
+    
+    console.log("[submitEndlessTrade] Current trade being submitted:", currentTradeId);
+    console.log("[submitEndlessTrade] Used IDs from state:", currentUsedIds);
+    console.log("[submitEndlessTrade] Exclude list (including current):", excludeIds);
 
     if (!nextTrade) {
       try {
-        nextTrade = await fetchRandomTrade(currentUsedIds);
+        console.log("[submitEndlessTrade] No prefetched trade, fetching with excludeIds:", excludeIds);
+        nextTrade = await fetchRandomTrade(excludeIds);
       } catch (error) {
         console.error("Failed to fetch next trade:", error);
+        // If no trades available, this means all trades have been used
+        if (error.message.includes("No trades are currently available") || error.message === 'NO_TRADES_AVAILABLE') {
+          throw new Error("ALL_TRADES_EXHAUSTED");
+        }
         throw error;
       }
-    }
+      } else {
+        console.log("[submitEndlessTrade] Using prefetched trade:", nextTrade.id);
+        // CRITICAL: Verify prefetched trade is not in the exclude list
+        // The prefetch might have happened before current trade was added to used list
+        if (excludeIds.includes(nextTrade.id) || nextTrade.id === currentTradeId) {
+          console.warn("[submitEndlessTrade] WARNING: Prefetched trade is already used! Fetching new one.");
+          console.warn("[submitEndlessTrade] Prefetched ID:", nextTrade.id, "is in exclude list:", excludeIds);
+          try {
+            nextTrade = await fetchRandomTrade(excludeIds);
+            
+            // CRITICAL: Validate the replacement trade is not in exclude list
+            // If API returns a trade that's already excluded, all trades are exhausted
+            if (!nextTrade || !nextTrade.id) {
+              console.error("[submitEndlessTrade] Replacement fetch returned invalid trade");
+              throw new Error("ALL_TRADES_EXHAUSTED");
+            }
+            
+            if (excludeIds.includes(nextTrade.id) || nextTrade.id === currentTradeId) {
+              console.error("[submitEndlessTrade] ERROR: Replacement trade is also in exclude list! All trades exhausted.");
+              console.error("[submitEndlessTrade] Replacement ID:", nextTrade.id, "exclude list:", excludeIds);
+              throw new Error("ALL_TRADES_EXHAUSTED");
+            }
+            
+            console.log("[submitEndlessTrade] Replacement trade validated:", nextTrade.id);
+          } catch (error) {
+            console.error("Failed to fetch replacement trade:", error);
+            // If no trades available, this means all trades have been used
+            if (error.message === "ALL_TRADES_EXHAUSTED" || 
+                error.message.includes("No trades are currently available") || 
+                error.message === 'NO_TRADES_AVAILABLE') {
+              throw new Error("ALL_TRADES_EXHAUSTED");
+            }
+            throw error;
+          }
+        }
+      }
+      
+      // Final validation: Ensure nextTrade is valid and not in exclude list
+      if (!nextTrade || !nextTrade.id) {
+        console.error("[submitEndlessTrade] ERROR: No valid next trade available");
+        throw new Error("ALL_TRADES_EXHAUSTED");
+      }
+      
+      if (excludeIds.includes(nextTrade.id)) {
+        console.error("[submitEndlessTrade] ERROR: Next trade is in exclude list! All trades exhausted.");
+        throw new Error("ALL_TRADES_EXHAUSTED");
+      }
 
     // Prefetch the trade after next
     let prefetchedNextTrade = null;
+    const excludeForPrefetch = [...excludeIds, nextTrade.id];
     try {
-      prefetchedNextTrade = await fetchRandomTrade([
-        ...currentUsedIds,
-        nextTrade.id,
-      ]);
+      console.log("[submitEndlessTrade] Prefetching next trade, excluding:", excludeForPrefetch);
+      prefetchedNextTrade = await fetchRandomTrade(excludeForPrefetch);
+      console.log("[submitEndlessTrade] Prefetched trade:", prefetchedNextTrade?.id);
     } catch (error) {
-      console.warn("Failed to prefetch next trade:", error);
+      // If prefetch fails because no trades available, that's okay - we'll fetch on demand
+      if (error.message.includes("No trades are currently available") || error.message === 'NO_TRADES_AVAILABLE') {
+        console.log("[submitEndlessTrade] All trades will be exhausted after this one. Prefetch skipped.");
+      } else {
+        console.warn("Failed to prefetch next trade:", error);
+      }
     }
 
-    const newUsedIds = [...currentUsedIds, nextTrade.id];
+    // Update used IDs: include current trade (if not already there) and next trade
+    const newUsedIds = excludeIds.includes(nextTrade.id)
+      ? excludeIds
+      : [...excludeIds, nextTrade.id];
+    
+    console.log("[submitEndlessTrade] Updated used IDs:", {
+      previousCount: currentUsedIds.length,
+      excludeCount: excludeIds.length,
+      newCount: newUsedIds.length,
+      currentTradeId: currentTradeId,
+      nextTradeId: nextTrade.id,
+      allUsedIds: newUsedIds,
+    });
     
     // Save updated used trade IDs to SecureStore
     await saveUsedTradeIds(newUsedIds);
@@ -330,6 +464,16 @@ const useGameStore = create((set, get) => ({
       endlessModeUsedTradeIds: newUsedIds,
       endlessModeNextTrade: prefetchedNextTrade,
     });
+    } catch (error) {
+      // If all trades exhausted, clear current trade to prevent showing stale data
+      if (error.message === "ALL_TRADES_EXHAUSTED" || 
+          error.message.includes("No trades are currently available")) {
+        console.log("[submitEndlessTrade] Clearing current trade - all trades exhausted");
+        set({ endlessModeCurrentTrade: null });
+      }
+      // Re-throw the error so the UI can handle it
+      throw error;
+    }
   },
 
   completeEndlessMode: () =>

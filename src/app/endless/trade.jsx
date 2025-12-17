@@ -57,8 +57,9 @@ export default function EndlessTrade() {
     } catch (error) {
       console.error("Error submitting trade:", error);
       
-      // If no trades available, end the game gracefully
-      if (error.message.includes("No trades are currently available")) {
+      // If all trades are exhausted, end the game gracefully
+      if (error.message === "ALL_TRADES_EXHAUSTED" || error.message.includes("No trades are currently available")) {
+        console.log("All trades exhausted, redirecting to complete page");
         router.push("/endless/complete");
       } else if (error.message === "OFFLINE") {
         alert("No internet connection. Please check your connection and try again.");

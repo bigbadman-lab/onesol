@@ -305,21 +305,36 @@ export default function Leaderboard() {
                     </View>
 
                     {/* Player Info */}
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text
-                        style={{
-                          fontSize: 18,
-                          fontWeight: "700",
-                          color: "#FFFFFF",
-                          marginBottom: 4,
-                        }}
-                        numberOfLines={1}
-                      >
-                        {getDisplayName(entry)}
+                    <View style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
+                        <Text
+                          style={{
+                            fontSize: 18,
+                            fontWeight: "700",
+                            color: "#FFFFFF",
+                            marginBottom: 4,
+                            flexShrink: 1,
+                          }}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {getDisplayName(entry)}
+                        </Text>
                         {isCurrentUser && (
-                          <Text style={{ color: "#7B68EE" }}> (You)</Text>
+                          <Text 
+                            style={{ 
+                              color: "#7B68EE",
+                              fontSize: 18,
+                              fontWeight: "700",
+                              marginBottom: 4,
+                              marginLeft: 4,
+                              flexShrink: 0,
+                            }}
+                          >
+                            (You)
+                          </Text>
                         )}
-                      </Text>
+                      </View>
                       <Text
                         style={{
                           fontSize: 14,
@@ -331,7 +346,7 @@ export default function Leaderboard() {
                     </View>
 
                     {/* Score */}
-                    <View style={{ alignItems: "flex-end" }}>
+                    <View style={{ alignItems: "flex-end", flexShrink: 0, marginLeft: 8 }}>
                       <Text
                         style={{
                           fontSize: 24,
