@@ -206,7 +206,7 @@ export default function EndlessComplete() {
           ref={scoreCardRef}
           style={{
             marginTop: 40,
-            backgroundColor: "rgba(255, 255, 255, 0.05)",
+            backgroundColor: "#1A1A1A",
             borderRadius: 20,
             padding: 24,
             borderWidth: 1,

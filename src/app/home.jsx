@@ -139,7 +139,7 @@ export default function Home() {
         </TouchableOpacity>
 
         {/* Hero Image at the top */}
-        <View style={{ alignItems: "center", marginTop: 20 }}>
+        <View style={{ alignItems: "center", marginTop: 20, marginBottom: 20 }}>
           <Image
             source={require("../../assets/images/onesolmain.png")}
             style={{ width: 180, height: 120 }}
