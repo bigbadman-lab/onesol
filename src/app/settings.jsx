@@ -5,6 +5,7 @@ import {
   ScrollView,
   Modal,
   ActivityIndicator,
+  Switch,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -17,9 +18,10 @@ import {
 } from "lucide-react-native";
 import * as Linking from "expo-linking";
 import useDeviceId from "../utils/useDeviceId";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as SecureStore from "expo-secure-store";
 import { Image } from "expo-image";
+import { scheduleDailyNotification, cancelDailyNotification } from "../notifications/testNotifications";
 
 export default function Settings() {
   const router = useRouter();
@@ -27,6 +29,56 @@ export default function Settings() {
   const { deviceId, friendlyName } = useDeviceId();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [dailyNotificationsEnabled, setDailyNotificationsEnabled] = useState(false);
+
+  const DAILY_NOTIFICATIONS_KEY = "daily_notifications_enabled";
+
+  // Load daily notifications preference on mount
+  useEffect(() => {
+    async function loadDailyNotificationsPreference() {
+      try {
+        const value = await SecureStore.getItemAsync(DAILY_NOTIFICATIONS_KEY);
+        setDailyNotificationsEnabled(value === "true");
+      } catch (error) {
+        console.error("Error loading daily notifications preference:", error);
+      }
+    }
+    loadDailyNotificationsPreference();
+  }, []);
+
+  // Handle daily notifications toggle
+  const handleDailyNotificationsToggle = async (value) => {
+    try {
+      if (value) {
+        // Enable: Request permissions and schedule notification
+        const result = await scheduleDailyNotification();
+        if (result.ok) {
+          setDailyNotificationsEnabled(true);
+          await SecureStore.setItemAsync(DAILY_NOTIFICATIONS_KEY, "true");
+          console.log("Daily notifications enabled and scheduled");
+        } else {
+          // Permission denied or error
+          if (result.reason === 'permission_denied') {
+            alert("Notification permissions are required. Please enable them in your device settings.");
+          } else {
+            alert("Failed to enable notifications. Please try again.");
+          }
+          // Don't update state if failed
+        }
+      } else {
+        // Disable: Cancel notification
+        await cancelDailyNotification();
+        setDailyNotificationsEnabled(false);
+        await SecureStore.setItemAsync(DAILY_NOTIFICATIONS_KEY, "false");
+        console.log("Daily notifications disabled and cancelled");
+      }
+    } catch (error) {
+      console.error("Error toggling daily notifications:", error);
+      // Revert on error
+      setDailyNotificationsEnabled(!value);
+      alert("Failed to update notification settings. Please try again.");
+    }
+  };
 
   const handleDeleteAccount = async () => {
     console.log("User confirmed account deletion");
@@ -240,6 +292,65 @@ export default function Settings() {
           >
             This is your friendly name that appears on the leaderboard. It's automatically generated and stored securely on your device.
           </Text>
+        </View>
+
+        {/* Notifications Settings Card */}
+        <View
+          style={{
+            marginHorizontal: 20,
+            marginTop: 20,
+            backgroundColor: "#1A1A1A",
+            borderRadius: 16,
+            padding: 24,
+            borderWidth: 2,
+            borderColor: "#333333",
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: "700",
+              color: "#7B68EE",
+              marginBottom: 16,
+            }}
+          >
+            NOTIFICATIONS
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <View style={{ flex: 1, marginRight: 16 }}>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "600",
+                  color: "#FFFFFF",
+                  marginBottom: 4,
+                }}
+              >
+                Daily Notifications
+              </Text>
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: "#999999",
+                  lineHeight: 20,
+                }}
+              >
+                Receive daily reminders to play
+              </Text>
+            </View>
+            <Switch
+              value={dailyNotificationsEnabled}
+              onValueChange={handleDailyNotificationsToggle}
+              trackColor={{ false: "#333333", true: "#7B68EE" }}
+              thumbColor={dailyNotificationsEnabled ? "#FFFFFF" : "#CCCCCC"}
+            />
+          </View>
         </View>
 
         {/* Device ID Card */}

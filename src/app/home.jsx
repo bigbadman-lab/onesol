@@ -16,6 +16,9 @@ import { Image } from "expo-image";
 import useGameStore from "../utils/gameStore";
 import { useState, useEffect } from "react";
 import useDeviceId from "../utils/useDeviceId";
+import { scheduleDailyNotification } from "../notifications/testNotifications";
+import * as Notifications from "expo-notifications";
+import * as SecureStore from "expo-secure-store";
 
 export default function Home() {
   const router = useRouter();
@@ -27,7 +30,9 @@ export default function Home() {
 
   const [showModal, setShowModal] = useState(false);
   const [showOfflineModal, setShowOfflineModal] = useState(false);
+  const [showAllTradesModal, setShowAllTradesModal] = useState(false);
   const [isFindingTrades, setIsFindingTrades] = useState(false);
+  const [isEnablingNotifications, setIsEnablingNotifications] = useState(false);
 
   const startEndlessMode = useGameStore((state) => state.startEndlessMode);
   const resetEndlessMode = useGameStore((state) => state.resetEndlessMode);
@@ -52,7 +57,7 @@ export default function Home() {
       if (error.message === "OFFLINE") {
         setShowOfflineModal(true);
       } else if (error.message === "ALL_TRADES_USED_TODAY") {
-        alert("You have seen all available trades for today, they will reset at midnight");
+        setShowAllTradesModal(true);
       } else if (error.message.includes("No trades are currently available")) {
         alert("No trades are currently available. Please try again later.");
       } else {
@@ -247,6 +252,7 @@ export default function Home() {
             How it works
           </Text>
         </TouchableOpacity>
+
       </ScrollView>
 
       {/* How it works Modal */}
@@ -422,6 +428,141 @@ export default function Home() {
                 OK
               </Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* All Trades Used Modal */}
+      <Modal
+        visible={showAllTradesModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowAllTradesModal(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0, 0, 0, 0.9)",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 20,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#1A1A1A",
+              borderRadius: 24,
+              padding: 30,
+              width: "100%",
+              maxWidth: 400,
+              borderWidth: 2,
+              borderColor: "#7B68EE",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 24,
+                fontWeight: "900",
+                color: "#FFFFFF",
+                textAlign: "center",
+                marginBottom: 12,
+              }}
+            >
+              All Trades Complete! 🎉
+            </Text>
+
+            <Text
+              style={{
+                fontSize: 16,
+                color: "#CCCCCC",
+                textAlign: "center",
+                lineHeight: 24,
+                marginBottom: 30,
+              }}
+            >
+              You've seen all available trades for today. New trades will be available tomorrow at 10am.
+              {"\n\n"}
+              Would you like to get a daily reminder when new trades are ready?
+            </Text>
+
+            <View style={{ gap: 12 }}>
+              <TouchableOpacity
+                onPress={async () => {
+                  setIsEnablingNotifications(true);
+                  try {
+                    // Request notification permissions
+                    const { status } = await Notifications.requestPermissionsAsync();
+                    
+                    if (status === "granted") {
+                      // Schedule the daily notification
+                      const result = await scheduleDailyNotification();
+                      if (result.ok) {
+                        // Enable daily notifications in settings
+                        await SecureStore.setItemAsync("daily_notifications_enabled", "true");
+                        setShowAllTradesModal(false);
+                        alert("Daily notifications enabled! You'll get a reminder when new trades are available.");
+                      } else {
+                        alert("Failed to schedule notification. Please try again in Settings.");
+                      }
+                    } else {
+                      alert("Notification permissions are required for daily reminders. You can enable them later in Settings.");
+                    }
+                  } catch (error) {
+                    console.error("Error enabling notifications:", error);
+                    alert("Failed to enable notifications. Please try again in Settings.");
+                  } finally {
+                    setIsEnablingNotifications(false);
+                  }
+                }}
+                disabled={isEnablingNotifications}
+                style={{
+                  backgroundColor: "#7B68EE",
+                  borderRadius: 12,
+                  paddingVertical: 16,
+                  alignItems: "center",
+                  opacity: isEnablingNotifications ? 0.6 : 1,
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  gap: 8,
+                }}
+              >
+                {isEnablingNotifications && (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                )}
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: "700",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  {isEnablingNotifications ? "Enabling..." : "Yes, Enable Daily Reminders"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setShowAllTradesModal(false)}
+                disabled={isEnablingNotifications}
+                style={{
+                  backgroundColor: "transparent",
+                  borderWidth: 2,
+                  borderColor: "#333333",
+                  borderRadius: 12,
+                  paddingVertical: 16,
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: "700",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  Maybe Later
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
