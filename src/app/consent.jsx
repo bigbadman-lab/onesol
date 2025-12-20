@@ -4,8 +4,13 @@ import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
 import * as SecureStore from "expo-secure-store";
-
-const CONSENT_KEY = "user_consent_given";
+import {
+  CONSENT_KEY,
+  DEVICE_ID_KEY,
+  FRIENDLY_NAME_KEY,
+  generateUUID,
+  generateFriendlyName,
+} from "../utils/useDeviceId";
 
 export default function Consent() {
   const router = useRouter();
@@ -17,10 +22,25 @@ export default function Consent() {
     try {
       // Store consent
       await SecureStore.setItemAsync(CONSENT_KEY, "true");
+      
+      // Generate and save UUID if it doesn't exist
+      let deviceId = await SecureStore.getItemAsync(DEVICE_ID_KEY);
+      if (!deviceId) {
+        deviceId = generateUUID();
+        await SecureStore.setItemAsync(DEVICE_ID_KEY, deviceId);
+      }
+      
+      // Generate and save friendly name if it doesn't exist
+      let friendlyName = await SecureStore.getItemAsync(FRIENDLY_NAME_KEY);
+      if (!friendlyName) {
+        friendlyName = generateFriendlyName();
+        await SecureStore.setItemAsync(FRIENDLY_NAME_KEY, friendlyName);
+      }
+      
       // Navigate to home
       router.replace("/home");
     } catch (error) {
-      console.error("Error saving consent:", error);
+      console.error("Error saving consent or generating device ID:", error);
       setIsAccepting(false);
     }
   };

@@ -19,61 +19,85 @@ import {
 } from "lucide-react-native";
 import * as Linking from "expo-linking";
 import useDeviceId from "../utils/useDeviceId";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import * as SecureStore from "expo-secure-store";
 import { Image } from "expo-image";
 
 export default function Settings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { deviceId } = useDeviceId();
+  const { deviceId, friendlyName, loading: loadingDeviceId } = useDeviceId();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  // Nickname state - minimal
-  const [nickname, setNickname] = useState("");
-  const [loadingNickname, setLoadingNickname] = useState(true);
 
   // Email state
   const [email, setEmail] = useState("");
   const [loadingEmail, setLoadingEmail] = useState(true);
   const [savingEmail, setSavingEmail] = useState(false);
   const [emailError, setEmailError] = useState("");
+  
+  // Ref to track if email has been loaded and prevent multiple loads
+  const emailLoadedRef = useRef(false);
 
-  // Load nickname and email on mount
+  // Load email on mount - moved inside useEffect to prevent loops
   useEffect(() => {
-    if (deviceId) {
-      loadNickname();
-      loadEmail();
-    }
-  }, [deviceId]);
+    // Prevent multiple loads
+    if (emailLoadedRef.current) return;
+    emailLoadedRef.current = true; // Mark as loading immediately
+    
+    let isMounted = true;
+    let timeoutId = null;
+    
+    const loadEmail = async () => {
+      try {
+        if (!isMounted) return;
+        
+        // Add timeout fallback to prevent indefinite loading (5 second max)
+        timeoutId = setTimeout(() => {
+          if (isMounted) {
+            console.warn("Email loading timeout - setting to empty and stopping load");
+            setEmail("");
+            setLoadingEmail(false);
+          }
+        }, 5000);
+        
+        const storedEmail = await SecureStore.getItemAsync("user_email");
+        
+        // Clear timeout if operation completes
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        
+        if (isMounted) {
+          setEmail(storedEmail || "");
+          setLoadingEmail(false);
+        }
+      } catch (error) {
+        console.error("Error loading email:", error);
+        
+        // Clear timeout on error
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        
+        if (isMounted) {
+          setEmail("");
+          setLoadingEmail(false);
+        }
+      }
+    };
 
-  const loadNickname = async () => {
-    try {
-      setLoadingNickname(true);
-      const response = await fetch(`/api/user/profile?uuid=${deviceId}`);
-      if (!response.ok) throw new Error("Failed to fetch profile");
-
-      const data = await response.json();
-      setNickname(data.nickname || "");
-    } catch (error) {
-      console.error("Error loading nickname:", error);
-    } finally {
-      setLoadingNickname(false);
-    }
-  };
-
-  const loadEmail = async () => {
-    try {
-      setLoadingEmail(true);
-      const storedEmail = await SecureStore.getItemAsync("user_email");
-      setEmail(storedEmail || "");
-    } catch (error) {
-      console.error("Error loading email:", error);
-    } finally {
-      setLoadingEmail(false);
-    }
-  };
+    loadEmail();
+    
+    return () => {
+      isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, []); // Empty dependency array - only run once on mount
 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -261,7 +285,7 @@ export default function Settings() {
             </Text>
           </View>
 
-          {loadingNickname ? (
+          {loadingDeviceId ? (
             <ActivityIndicator size="small" color="#7B68EE" />
           ) : (
             <>
@@ -269,9 +293,9 @@ export default function Settings() {
                 style={{
                   paddingVertical: 12,
                   paddingHorizontal: 12,
-                  backgroundColor: nickname ? "#2A2A2A" : "transparent",
+                  backgroundColor: friendlyName ? "#2A2A2A" : "transparent",
                   borderRadius: 8,
-                  borderWidth: nickname ? 1 : 0,
+                  borderWidth: friendlyName ? 1 : 0,
                   borderColor: "#444444",
                   marginBottom: 12,
                 }}
@@ -283,7 +307,7 @@ export default function Settings() {
                     lineHeight: 24,
                   }}
                 >
-                  {nickname || "Not set"}
+                  {friendlyName || "Not set"}
                 </Text>
               </View>
               <View
