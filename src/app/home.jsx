@@ -106,7 +106,15 @@ export default function Home() {
           pointerEvents="box-none"
         >
           <TouchableOpacity 
-            onPress={() => router.push("/settings")}
+            onPress={() => {
+              console.log("Home: Attempting to navigate to /settings");
+              try {
+                router.push("/settings");
+                console.log("Home: router.push called successfully");
+              } catch (error) {
+                console.error("Home: Navigation error:", error);
+              }
+            }}
             activeOpacity={0.7}
           >
             <Settings size={32} color="#FFFFFF" />

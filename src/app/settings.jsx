@@ -4,8 +4,9 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  BackHandler,
   ActivityIndicator,
-  Switch,
+  TextInput,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -21,146 +22,131 @@ import useDeviceId from "../utils/useDeviceId";
 import { useState, useEffect } from "react";
 import * as SecureStore from "expo-secure-store";
 import { Image } from "expo-image";
-import { scheduleDailyNotification, cancelDailyNotification } from "../notifications/testNotifications";
 
 export default function Settings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { deviceId, friendlyName } = useDeviceId();
+  const { deviceId } = useDeviceId();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [dailyNotificationsEnabled, setDailyNotificationsEnabled] = useState(false);
 
-  const DAILY_NOTIFICATIONS_KEY = "daily_notifications_enabled";
+  // Nickname state - minimal
+  const [nickname, setNickname] = useState("");
+  const [loadingNickname, setLoadingNickname] = useState(true);
 
-  // Load daily notifications preference on mount
+  // Email state
+  const [email, setEmail] = useState("");
+  const [loadingEmail, setLoadingEmail] = useState(true);
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [emailError, setEmailError] = useState("");
+
+  // Load nickname and email on mount
   useEffect(() => {
-    async function loadDailyNotificationsPreference() {
-      try {
-        const value = await SecureStore.getItemAsync(DAILY_NOTIFICATIONS_KEY);
-        setDailyNotificationsEnabled(value === "true");
-      } catch (error) {
-        console.error("Error loading daily notifications preference:", error);
-      }
+    if (deviceId) {
+      loadNickname();
+      loadEmail();
     }
-    loadDailyNotificationsPreference();
-  }, []);
+  }, [deviceId]);
 
-  // Handle daily notifications toggle
-  const handleDailyNotificationsToggle = async (value) => {
+  const loadNickname = async () => {
     try {
-      if (value) {
-        // Enable: Request permissions and schedule notification
-        const result = await scheduleDailyNotification();
-        if (result.ok) {
-          setDailyNotificationsEnabled(true);
-          await SecureStore.setItemAsync(DAILY_NOTIFICATIONS_KEY, "true");
-          console.log("Daily notifications enabled and scheduled");
-        } else {
-          // Permission denied or error
-          if (result.reason === 'permission_denied') {
-            alert("Notification permissions are required. Please enable them in your device settings.");
-          } else {
-            alert("Failed to enable notifications. Please try again.");
-          }
-          // Don't update state if failed
-        }
-      } else {
-        // Disable: Cancel notification
-        await cancelDailyNotification();
-        setDailyNotificationsEnabled(false);
-        await SecureStore.setItemAsync(DAILY_NOTIFICATIONS_KEY, "false");
-        console.log("Daily notifications disabled and cancelled");
-      }
+      setLoadingNickname(true);
+      const response = await fetch(`/api/user/profile?uuid=${deviceId}`);
+      if (!response.ok) throw new Error("Failed to fetch profile");
+
+      const data = await response.json();
+      setNickname(data.nickname || "");
     } catch (error) {
-      console.error("Error toggling daily notifications:", error);
-      // Revert on error
-      setDailyNotificationsEnabled(!value);
-      alert("Failed to update notification settings. Please try again.");
+      console.error("Error loading nickname:", error);
+    } finally {
+      setLoadingNickname(false);
     }
   };
+
+  const loadEmail = async () => {
+    try {
+      setLoadingEmail(true);
+      const storedEmail = await SecureStore.getItemAsync("user_email");
+      setEmail(storedEmail || "");
+    } catch (error) {
+      console.error("Error loading email:", error);
+    } finally {
+      setLoadingEmail(false);
+    }
+  };
+
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleSaveEmail = async () => {
+    setEmailError("");
+    
+    if (!email.trim()) {
+      setEmailError("Email cannot be empty");
+      return;
+    }
+
+    if (!validateEmail(email.trim())) {
+      setEmailError("Please enter a valid email address");
+      return;
+    }
+
+    try {
+      setSavingEmail(true);
+      await SecureStore.setItemAsync("user_email", email.trim());
+      setEmailError("");
+      alert("Email saved successfully! You're now eligible for daily prizes.");
+    } catch (error) {
+      console.error("Error saving email:", error);
+      setEmailError("Failed to save email. Please try again.");
+    } finally {
+      setSavingEmail(false);
+    }
+  };
+
 
   const handleDeleteAccount = async () => {
     console.log("User confirmed account deletion");
     setIsDeleting(true);
-    
-    // Add timeout to prevent hanging
-    const timeoutId = setTimeout(() => {
-      setIsDeleting(false);
-      setShowDeleteModal(false);
-      alert("Request timed out. Please check your connection and try again.");
-    }, 10000); // 10 second timeout
-
     try {
       console.log("Sending delete request for deviceId:", deviceId);
 
-      // Delete data from database with timeout
-      const controller = new AbortController();
-      const fetchTimeout = setTimeout(() => controller.abort(), 8000); // 8 second fetch timeout
-
+      // Delete data from database
       const response = await fetch("/api/user/delete", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ uuid: deviceId }),
-        signal: controller.signal,
       });
-
-      clearTimeout(fetchTimeout);
 
       console.log("Delete API response status:", response.status);
 
       if (!response.ok) {
-        let errorMessage = "Failed to delete account data";
-        try {
-          const errorData = await response.json();
-          console.error("Delete API error:", errorData);
-          errorMessage = errorData.error || errorMessage;
-        } catch (parseError) {
-          console.error("Error parsing error response:", parseError);
-        }
-        throw new Error(errorMessage);
+        const errorData = await response.json();
+        console.error("Delete API error:", errorData);
+        throw new Error("Failed to delete account data");
       }
 
       const result = await response.json();
       console.log("Delete API success:", result);
 
-      // Clear all user data from secure store
-      console.log("Clearing all user data from SecureStore...");
-      try {
-            await SecureStore.deleteItemAsync("device_uuid");
-            await SecureStore.deleteItemAsync("device_friendly_name");
-            await SecureStore.deleteItemAsync("user_consent_given");
-            await SecureStore.deleteItemAsync("onboarding_completed");
-            await SecureStore.deleteItemAsync("used_trade_ids_today"); // Clear trade ID tracking
-            await SecureStore.deleteItemAsync("last_trade_date"); // Clear trade date tracking
-            console.log("SecureStore cleared successfully");
-      } catch (storeError) {
-        console.error("Error clearing SecureStore:", storeError);
-        // Continue anyway - we'll still navigate
-      }
+      // Clear device ID from secure store - use correct key
+      console.log("Clearing device_uuid from SecureStore...");
+      await SecureStore.deleteItemAsync("device_uuid");
+      console.log("SecureStore cleared successfully");
 
-      clearTimeout(timeoutId);
-      setIsDeleting(false);
-      setShowDeleteModal(false);
-
-      // Navigate to onboarding screen to restart the flow
-      // This works on both iOS and Android
-      console.log("Navigating to onboarding screen...");
-      router.replace("/onboarding");
+      // Exit the app
+      console.log("Exiting app...");
+      BackHandler.exitApp();
     } catch (error) {
-      clearTimeout(timeoutId);
       console.error("Error deleting account:", error);
       console.error("Error stack:", error.stack);
       setIsDeleting(false);
       setShowDeleteModal(false);
-      
-      if (error.name === "AbortError") {
-        alert("Request timed out. Please check your connection and try again.");
-      } else {
-        alert(`Failed to delete account: ${error.message || "Please try again."}`);
-      }
+      alert("Failed to delete account. Please try again.");
     }
   };
 
@@ -244,7 +230,7 @@ export default function Settings() {
           </TouchableOpacity>
         </View>
 
-        {/* Your Name Card */}
+        {/* Nickname Card - Display Only */}
         <View
           style={{
             marginHorizontal: 20,
@@ -253,48 +239,74 @@ export default function Settings() {
             borderRadius: 16,
             padding: 24,
             borderWidth: 2,
-            borderColor: "#7B68EE",
+            borderColor: "#333333",
           }}
         >
-          <Text
+          <View
             style={{
-              fontSize: 18,
-              fontWeight: "700",
-              color: "#7B68EE",
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
               marginBottom: 16,
             }}
           >
-            YOUR NAME
-          </Text>
-          <Text
-            style={{
-              fontSize: 20,
-              color: "#FFFFFF",
-              lineHeight: 28,
-              fontWeight: "600",
-            }}
-          >
-            {friendlyName || "Loading..."}
-          </Text>
-          <View
-            style={{
-              height: 1,
-              backgroundColor: "#333333",
-              marginVertical: 16,
-            }}
-          />
-          <Text
-            style={{
-              fontSize: 14,
-              color: "#999999",
-              lineHeight: 20,
-            }}
-          >
-            This is your friendly name that appears on the leaderboard. It's automatically generated and stored securely on your device.
-          </Text>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "700",
+                color: "#7B68EE",
+              }}
+            >
+              NICKNAME
+            </Text>
+          </View>
+
+          {loadingNickname ? (
+            <ActivityIndicator size="small" color="#7B68EE" />
+          ) : (
+            <>
+              <View
+                style={{
+                  paddingVertical: 12,
+                  paddingHorizontal: 12,
+                  backgroundColor: nickname ? "#2A2A2A" : "transparent",
+                  borderRadius: 8,
+                  borderWidth: nickname ? 1 : 0,
+                  borderColor: "#444444",
+                  marginBottom: 12,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    color: "#FFFFFF",
+                    lineHeight: 24,
+                  }}
+                >
+                  {nickname || "Not set"}
+                </Text>
+              </View>
+              <View
+                style={{
+                  height: 1,
+                  backgroundColor: "#333333",
+                  marginVertical: 16,
+                }}
+              />
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: "#999999",
+                  lineHeight: 20,
+                }}
+              >
+                This is how you appear on the leaderboard.
+              </Text>
+            </>
+          )}
         </View>
 
-        {/* Notifications Settings Card */}
+        {/* Email Card */}
         <View
           style={{
             marginHorizontal: 20,
@@ -314,26 +326,75 @@ export default function Settings() {
               marginBottom: 16,
             }}
           >
-            NOTIFICATIONS
+            EMAIL {email && "✓"}
           </Text>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <View style={{ flex: 1, marginRight: 16 }}>
-              <Text
+
+          {loadingEmail ? (
+            <ActivityIndicator size="small" color="#7B68EE" />
+          ) : (
+            <>
+              <TextInput
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  setEmailError("");
+                }}
+                placeholder="Enter your email address"
+                placeholderTextColor="#666666"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!savingEmail}
                 style={{
                   fontSize: 16,
-                  fontWeight: "600",
                   color: "#FFFFFF",
-                  marginBottom: 4,
+                  backgroundColor: "#2A2A2A",
+                  borderRadius: 8,
+                  padding: 12,
+                  borderWidth: 1,
+                  borderColor: emailError ? "#FF0000" : "#444444",
+                  marginBottom: 8,
+                }}
+              />
+              {emailError ? (
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: "#FF0000",
+                    marginBottom: 12,
+                  }}
+                >
+                  {emailError}
+                </Text>
+              ) : null}
+              <TouchableOpacity
+                onPress={handleSaveEmail}
+                disabled={savingEmail || !email.trim()}
+                style={{
+                  backgroundColor: email.trim() ? "#7B68EE" : "#333333",
+                  borderRadius: 8,
+                  paddingVertical: 12,
+                  alignItems: "center",
+                  opacity: savingEmail || !email.trim() ? 0.6 : 1,
                 }}
               >
-                Daily Notifications
-              </Text>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "700",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  {savingEmail ? "Saving..." : "Save Email"}
+                </Text>
+              </TouchableOpacity>
+              <View
+                style={{
+                  height: 1,
+                  backgroundColor: "#333333",
+                  marginVertical: 16,
+                }}
+              />
               <Text
                 style={{
                   fontSize: 14,
@@ -341,16 +402,12 @@ export default function Settings() {
                   lineHeight: 20,
                 }}
               >
-                Receive daily reminders to play
+                {email
+                  ? "Your email is saved. You're eligible for daily prizes when you win!"
+                  : "Add your email to be eligible for daily prizes. Winners are notified via email."}
               </Text>
-            </View>
-            <Switch
-              value={dailyNotificationsEnabled}
-              onValueChange={handleDailyNotificationsToggle}
-              trackColor={{ false: "#333333", true: "#7B68EE" }}
-              thumbColor={dailyNotificationsEnabled ? "#FFFFFF" : "#CCCCCC"}
-            />
-          </View>
+            </>
+          )}
         </View>
 
         {/* Device ID Card */}
@@ -698,14 +755,8 @@ export default function Settings() {
                   paddingVertical: 16,
                   alignItems: "center",
                   opacity: isDeleting ? 0.6 : 1,
-                  flexDirection: "row",
-                  justifyContent: "center",
-                  gap: 8,
                 }}
               >
-                {isDeleting && (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                )}
                 <Text
                   style={{
                     fontSize: 18,

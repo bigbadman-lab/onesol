@@ -19,6 +19,7 @@ import useDeviceId from "../../utils/useDeviceId";
 import * as Notifications from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
 import { scheduleDailyNotification } from "../../notifications/testNotifications";
+import * as Linking from "expo-linking";
 
 export default function EndlessComplete() {
   const router = useRouter();
@@ -41,6 +42,7 @@ export default function EndlessComplete() {
   const [showAllTradesModal, setShowAllTradesModal] = useState(false);
   const [isEnablingNotifications, setIsEnablingNotifications] = useState(false);
   const [isFindingTrades, setIsFindingTrades] = useState(false);
+  const [showEmailCard, setShowEmailCard] = useState(false);
 
   const accuracy =
     tradeCount > 0 ? Math.round((correctCount / tradeCount) * 100) : 0;
@@ -50,51 +52,99 @@ export default function EndlessComplete() {
 
   // Fetch user profile on mount
   useEffect(() => {
+    let isMounted = true;
     const fetchProfile = async () => {
-      if (!deviceId) return;
+      if (!deviceId || !isMounted) return;
       try {
         const response = await fetch(`/api/user/profile?uuid=${deviceId}`);
-        if (response.ok) {
+        if (response.ok && isMounted) {
           const data = await response.json();
           setUserProfile(data);
         }
       } catch (error) {
-        console.error("Error fetching profile:", error);
+        if (isMounted) {
+          console.error("Error fetching profile:", error);
+        }
       }
     };
     fetchProfile();
+    return () => {
+      isMounted = false;
+    };
   }, [deviceId]);
 
-  // Submit score to leaderboard on mount
+  // Submit score to leaderboard on mount (only once)
   useEffect(() => {
+    let isMounted = true;
     const submitScore = async () => {
-      if (!deviceId || hasSubmitted || isSubmitting) return;
+      if (!deviceId || hasSubmitted || isSubmitting || !isMounted) return;
 
       setIsSubmitting(true);
       try {
+        // Get email from SecureStore
+        const userEmail = await SecureStore.getItemAsync("user_email");
+        
         const response = await fetch("/api/leaderboard/submit", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             uuid: deviceId,
-            friendly_name: friendlyName, // Include friendly name for leaderboard display
+            friendly_name: friendlyName,
             final_sol: balance,
             correct_count: correctCount,
+            ...(userEmail && { email: userEmail }), // Include email if available
           }),
         });
 
-        if (response.ok) {
+        if (response.ok && isMounted) {
           setHasSubmitted(true);
+        } else if (isMounted) {
+          // Handle validation errors
+          const errorData = await response.json().catch(() => ({}));
+          if (errorData.error === "Invalid email format") {
+            console.error("Email validation error:", errorData.error);
+            // Clear invalid email from SecureStore
+            await SecureStore.deleteItemAsync("user_email");
+          }
         }
       } catch (error) {
-        console.error("Error submitting score:", error);
+        if (isMounted) {
+          console.error("Error submitting score:", error);
+        }
       } finally {
-        setIsSubmitting(false);
+        if (isMounted) {
+          setIsSubmitting(false);
+        }
       }
     };
 
     submitScore();
-  }, [deviceId, friendlyName, balance, correctCount, hasSubmitted, isSubmitting]);
+    return () => {
+      isMounted = false;
+    };
+    // Only run once when component mounts - remove state dependencies that could cause loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Check for email after successful submission
+  useEffect(() => {
+    const checkEmail = async () => {
+      if (hasSubmitted) {
+        const userEmail = await SecureStore.getItemAsync("user_email");
+        if (!userEmail) {
+          setShowEmailCard(true);
+        }
+      }
+    };
+    checkEmail();
+  }, [hasSubmitted]);
+
+  // Hide email card when notification modal appears
+  useEffect(() => {
+    if (showAllTradesModal) {
+      setShowEmailCard(false);
+    }
+  }, [showAllTradesModal]);
 
   const handlePlayAgain = async () => {
     if (isFindingTrades) return; // Prevent multiple clicks
@@ -144,6 +194,8 @@ export default function EndlessComplete() {
           paddingHorizontal: 30,
         }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        scrollEnabled={true}
       >
         {/* Home icon - top left */}
         <TouchableOpacity
@@ -290,6 +342,116 @@ export default function EndlessComplete() {
             </View>
           </View>
         </View>
+
+        {/* Email Collection Card */}
+        {showEmailCard && (
+          <View
+            style={{
+              marginTop: 24,
+              backgroundColor: "#1A1A1A",
+              borderRadius: 20,
+              padding: 24,
+              borderWidth: 2,
+              borderColor: "#7B68EE",
+              zIndex: 100,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 20,
+                fontWeight: "900",
+                color: "#FFFFFF",
+                textAlign: "center",
+                marginBottom: 8,
+              }}
+            >
+              🎁 Win Daily Prizes!
+            </Text>
+            <Text
+              style={{
+                fontSize: 14,
+                color: "#CCCCCC",
+                textAlign: "center",
+                lineHeight: 20,
+                marginBottom: 12,
+              }}
+            >
+              Add your email to be eligible for daily prizes when you win!
+            </Text>
+            <TouchableOpacity
+              onPress={() => Linking.openURL("https://1sol.fun/contest-rules")}
+              style={{
+                marginBottom: 20,
+                paddingVertical: 8,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: "#7B68EE",
+                  textAlign: "center",
+                  textDecorationLine: "underline",
+                }}
+              >
+                View Contest Rules
+              </Text>
+            </TouchableOpacity>
+            <View style={{ gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  console.log("Email card: Navigate to settings button pressed");
+                  // Hide card and navigate immediately - no setTimeout to avoid memory issues
+                  setShowEmailCard(false);
+                  try {
+                    console.log("Email card: Attempting navigation with push");
+                    router.push("/settings");
+                    console.log("Email card: Push navigation called");
+                  } catch (error) {
+                    console.error("Email card: Push navigation error:", error);
+                  }
+                }}
+                activeOpacity={0.7}
+                style={{
+                  backgroundColor: "#7B68EE",
+                  borderRadius: 12,
+                  paddingVertical: 14,
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "700",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  Add Email in Settings
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowEmailCard(false)}
+                style={{
+                  backgroundColor: "transparent",
+                  borderWidth: 1,
+                  borderColor: "#333333",
+                  borderRadius: 12,
+                  paddingVertical: 14,
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#999999",
+                  }}
+                >
+                  Maybe Later
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* Primary CTA */}
         <View style={{ marginTop: 40 }}>
