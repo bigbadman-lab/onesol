@@ -572,6 +572,43 @@ export default function Settings() {
           </Text>
         </View>
 
+        {/* Contest Disclaimer Card */}
+        <View
+          style={{
+            marginHorizontal: 20,
+            marginTop: 20,
+            backgroundColor: "#1A1A1A",
+            borderRadius: 16,
+            padding: 24,
+            borderWidth: 2,
+            borderColor: "#333333",
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: "700",
+              color: "#7B68EE",
+              marginBottom: 16,
+            }}
+          >
+            CONTEST DISCLAIMER
+          </Text>
+          <Text style={{ fontSize: 14, color: "#FFFFFF", lineHeight: 22 }}>
+            This contest/sweepstakes is in no way sponsored, endorsed, or
+            administered by Apple Inc. Apple is not a sponsor of, or participant
+            in, this promotion.
+            {"\n\n"}
+            Apple is not responsible for this contest/sweepstakes or any of its
+            rules, procedures, or outcomes. Any questions, comments, or complaints
+            regarding this contest/sweepstakes should be directed to the contest
+            administrator, not Apple.
+            {"\n\n"}
+            This contest/sweepstakes is subject to all applicable federal, state,
+            and local laws and regulations. Void where prohibited by law.
+          </Text>
+        </View>
+
         {/* Links Section */}
         <View
           style={{
@@ -606,6 +643,32 @@ export default function Settings() {
               }}
             >
               FAQ
+            </Text>
+            <ExternalLink size={20} color="#999999" />
+          </TouchableOpacity>
+
+          {/* Contest Rules */}
+          <TouchableOpacity
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: 20,
+              borderBottomWidth: 1,
+              borderBottomColor: "#333333",
+            }}
+            onPress={() => {
+              Linking.openURL("https://1sol.fun/contest-rules");
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: "600",
+                color: "#FFFFFF",
+              }}
+            >
+              Contest Rules
             </Text>
             <ExternalLink size={20} color="#999999" />
           </TouchableOpacity>

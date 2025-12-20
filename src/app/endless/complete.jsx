@@ -14,12 +14,13 @@ import { Settings, Trophy, Home } from "lucide-react-native";
 import { Image } from "expo-image";
 import useGameStore from "../../utils/gameStore";
 import { STARTING_BALANCE } from "../../utils/tradesData";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import useDeviceId from "../../utils/useDeviceId";
 import * as Notifications from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
 import { scheduleDailyNotification } from "../../notifications/testNotifications";
 import * as Linking from "expo-linking";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function EndlessComplete() {
   const router = useRouter();
@@ -126,18 +127,29 @@ export default function EndlessComplete() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Check for email after successful submission
-  useEffect(() => {
-    const checkEmail = async () => {
-      if (hasSubmitted) {
-        const userEmail = await SecureStore.getItemAsync("user_email");
-        if (!userEmail) {
+  // Check for email when screen comes into focus - show card if no email exists
+  useFocusEffect(
+    useCallback(() => {
+      const checkEmail = async () => {
+        try {
+          const userEmail = await SecureStore.getItemAsync("user_email");
+          // Show card if user doesn't have an email
+          // (Card can be hidden by "Maybe Later" for this page visit, but will show again when they return)
+          if (!userEmail) {
+            setShowEmailCard(true);
+          } else {
+            // Hide card if user has email
+            setShowEmailCard(false);
+          }
+        } catch (error) {
+          console.error("Error checking email:", error);
+          // On error, assume no email and show card
           setShowEmailCard(true);
         }
-      }
-    };
-    checkEmail();
-  }, [hasSubmitted]);
+      };
+      checkEmail();
+    }, [])
+  );
 
   // Hide email card when notification modal appears
   useEffect(() => {
