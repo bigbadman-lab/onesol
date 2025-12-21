@@ -55,11 +55,16 @@ export default function Settings() {
   const [isLoadingEmail, setIsLoadingEmail] = useState(true);
   const [savingEmail, setSavingEmail] = useState(false);
   const [emailError, setEmailError] = useState("");
+
+  // Notification state
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [isTogglingNotifications, setIsTogglingNotifications] = useState(false);
   
   // Collapsible sections state
   const [expandedSections, setExpandedSections] = useState({
     nickname: false,
     email: true, // Keep email expanded by default since it's important
+    notifications: false,
     deviceId: false,
     about: false,
     disclaimer: false,
