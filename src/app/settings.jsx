@@ -1077,9 +1077,6 @@ export default function Settings() {
                 {"\n\n"}
                 <Text style={{ fontWeight: "700" }}>General Terms</Text>
                 {"\n"}By participating, you agree to these official rules. Sponsor reserves the right to modify or cancel the contest at any time. All decisions by the Sponsor are final. Taxes on prizes are the sole responsibility of the winner. Void where prohibited by law. Contest is subject to all applicable federal, state, and local laws.
-                {"\n\n"}
-                <Text style={{ fontWeight: "700" }}>Questions?</Text>
-                {"\n"}For questions about this contest, contact: hello@1sol.fun
               </Text>
             </View>
           )}
