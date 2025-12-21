@@ -49,6 +49,14 @@
         }
       ],
       [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#7B68EE",
+          "sounds": []
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "ios": {

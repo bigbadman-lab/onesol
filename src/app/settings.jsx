@@ -7,6 +7,7 @@ import {
   BackHandler,
   ActivityIndicator,
   Alert,
+  Switch,
 } from "react-native";
 // TextInput import removed - causing page crash even with polyfill
 // Will use alternative approach
@@ -26,6 +27,8 @@ import useDeviceId from "../utils/useDeviceId";
 import { useState, useEffect, useRef } from "react";
 import * as SecureStore from "expo-secure-store";
 import { Image } from "expo-image";
+import * as Notifications from "expo-notifications";
+import { scheduleDailyNotification, cancelDailyNotification } from "../notifications/testNotifications";
 
 export default function Settings() {
   console.log("Settings: Component function called");
@@ -79,6 +82,18 @@ export default function Settings() {
   useEffect(() => {
     console.log("[EMAIL] isLoadingEmail state changed to:", isLoadingEmail);
   }, [isLoadingEmail]);
+
+  // Load notification preference on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const enabled = await SecureStore.getItemAsync("daily_notifications_enabled");
+        setNotificationsEnabled(enabled === "true");
+      } catch (e) {
+        console.log("[NOTIFICATIONS] Error loading preference:", e);
+      }
+    })();
+  }, []);
 
   // Load email on mount
   useEffect(() => {
@@ -558,6 +573,136 @@ export default function Settings() {
                   </Text>
                 </>
               )}
+            </View>
+          )}
+        </View>
+
+        {/* Notifications Card - Collapsible */}
+        <View
+          style={{
+            marginHorizontal: 20,
+            marginTop: 20,
+            backgroundColor: "#1A1A1A",
+            borderRadius: 16,
+            borderWidth: 2,
+            borderColor: "#333333",
+            overflow: "hidden",
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => toggleSection("notifications")}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: 24,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "700",
+                color: "#7B68EE",
+              }}
+            >
+              DAILY NOTIFICATIONS
+            </Text>
+            {expandedSections.notifications ? (
+              <ChevronUp size={20} color="#7B68EE" />
+            ) : (
+              <ChevronDown size={20} color="#7B68EE" />
+            )}
+          </TouchableOpacity>
+          {expandedSections.notifications && (
+            <View style={{ paddingHorizontal: 24, paddingBottom: 24 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 16,
+                }}
+              >
+                <View style={{ flex: 1, marginRight: 16 }}>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "600",
+                      color: "#FFFFFF",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Daily Trade Reminders
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      color: "#999999",
+                      lineHeight: 20,
+                    }}
+                  >
+                    Get notified daily at 10am when new trades are available
+                  </Text>
+                </View>
+                {isTogglingNotifications ? (
+                  <ActivityIndicator size="small" color="#7B68EE" />
+                ) : (
+                  <Switch
+                    value={notificationsEnabled}
+                    onValueChange={async (value) => {
+                      setIsTogglingNotifications(true);
+                      try {
+                        if (value) {
+                          // Enable notifications
+                          const { status } = await Notifications.requestPermissionsAsync();
+                          if (status === "granted") {
+                            const result = await scheduleDailyNotification();
+                            if (result.ok) {
+                              await SecureStore.setItemAsync("daily_notifications_enabled", "true");
+                              setNotificationsEnabled(true);
+                              Alert.alert("Notifications Enabled", "You'll receive daily reminders at 10am when new trades are available.");
+                            } else {
+                              Alert.alert("Error", "Failed to schedule notification. Please try again.");
+                            }
+                          } else {
+                            Alert.alert("Permission Required", "Notification permissions are required for daily reminders. Please enable them in your device settings.");
+                          }
+                        } else {
+                          // Disable notifications
+                          await cancelDailyNotification();
+                          await SecureStore.setItemAsync("daily_notifications_enabled", "false");
+                          setNotificationsEnabled(false);
+                        }
+                      } catch (error) {
+                        console.error("Error toggling notifications:", error);
+                        Alert.alert("Error", "Failed to update notification settings. Please try again.");
+                      } finally {
+                        setIsTogglingNotifications(false);
+                      }
+                    }}
+                    trackColor={{ false: "#333333", true: "#7B68EE" }}
+                    thumbColor={notificationsEnabled ? "#FFFFFF" : "#CCCCCC"}
+                  />
+                )}
+              </View>
+              <View
+                style={{
+                  height: 1,
+                  backgroundColor: "#333333",
+                  marginVertical: 12,
+                }}
+              />
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: "#999999",
+                  lineHeight: 20,
+                }}
+              >
+                {notificationsEnabled
+                  ? "Daily notifications are enabled. You'll receive a reminder at 10am when new trades are available."
+                  : "Enable daily notifications to get reminded when new trades are ready each day."}
+              </Text>
             </View>
           )}
         </View>
