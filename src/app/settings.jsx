@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Switch,
+  Platform,
 } from "react-native";
 // TextInput import removed - causing page crash even with polyfill
 // Will use alternative approach
@@ -23,12 +24,13 @@ import {
   ChevronUp,
 } from "lucide-react-native";
 import * as Linking from "expo-linking";
-import useDeviceId from "../utils/useDeviceId";
+import useDeviceId, { DEVICE_ID_KEY, FRIENDLY_NAME_KEY, CONSENT_KEY } from "../utils/useDeviceId";
 import { useState, useEffect, useRef } from "react";
 import * as SecureStore from "expo-secure-store";
 import { Image } from "expo-image";
 import * as Notifications from "expo-notifications";
 import { scheduleDailyNotification, cancelDailyNotification } from "../notifications/testNotifications";
+import { authKey, useAuthStore } from "../utils/auth/store";
 
 export default function Settings() {
   console.log("Settings: Component function called");
@@ -161,45 +163,124 @@ export default function Settings() {
 
 
   const handleDeleteAccount = async () => {
-    console.log("User confirmed account deletion");
+    console.log("[DELETE ACCOUNT] User confirmed account deletion");
     setIsDeleting(true);
+    
     try {
-      console.log("Sending delete request for deviceId:", deviceId);
-
-      // Delete data from database
-      const response = await fetch("/api/user/delete", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ uuid: deviceId }),
-      });
-
-      console.log("Delete API response status:", response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Delete API error:", errorData);
-        throw new Error("Failed to delete account data");
+      // Cancel scheduled notifications first
+      console.log("[DELETE ACCOUNT] Cancelling scheduled notifications...");
+      try {
+        await cancelDailyNotification();
+        console.log("[DELETE ACCOUNT] Notifications cancelled successfully");
+      } catch (notifError) {
+        console.warn("[DELETE ACCOUNT] Error cancelling notifications (continuing):", notifError);
+        // Continue even if notification cancellation fails
       }
 
-      const result = await response.json();
-      console.log("Delete API success:", result);
+      // Delete data from database (only if deviceId exists)
+      if (deviceId) {
+        console.log("[DELETE ACCOUNT] Sending delete request for deviceId:", deviceId);
+        try {
+          const response = await fetch("/api/user/delete", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ uuid: deviceId }),
+          });
 
-      // Clear device ID from secure store - use correct key
-      console.log("Clearing device_uuid from SecureStore...");
-      await SecureStore.deleteItemAsync("device_uuid");
-      console.log("SecureStore cleared successfully");
+          console.log("[DELETE ACCOUNT] Delete API response status:", response.status);
 
-      // Exit the app
-      console.log("Exiting app...");
-      BackHandler.exitApp();
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error("[DELETE ACCOUNT] Delete API error:", errorData);
+            // Don't throw - continue with local cleanup even if API fails
+            console.warn("[DELETE ACCOUNT] API deletion failed, but continuing with local cleanup");
+          } else {
+            const result = await response.json();
+            console.log("[DELETE ACCOUNT] Delete API success:", result);
+          }
+        } catch (apiError) {
+          console.error("[DELETE ACCOUNT] API call failed (continuing with local cleanup):", apiError);
+          // Continue with local cleanup even if API call fails
+        }
+      } else {
+        console.log("[DELETE ACCOUNT] No deviceId found, skipping API call");
+      }
+
+      // Clear all user data from SecureStore
+      console.log("[DELETE ACCOUNT] Clearing all user data from SecureStore...");
+      const keysToDelete = [
+        DEVICE_ID_KEY, // "device_uuid"
+        FRIENDLY_NAME_KEY, // "device_friendly_name"
+        CONSENT_KEY, // "user_consent_given"
+        "user_email",
+        "daily_notifications_enabled",
+        "onboarding_completed",
+        "used_trade_ids_today",
+        "last_trade_date",
+      ];
+
+      // Add authKey if it exists
+      if (authKey) {
+        keysToDelete.push(authKey);
+      }
+
+      // Delete all keys in parallel
+      await Promise.all(
+        keysToDelete.map(async (key) => {
+          try {
+            await SecureStore.deleteItemAsync(key);
+            console.log(`[DELETE ACCOUNT] Cleared SecureStore key: ${key}`);
+          } catch (error) {
+            // Ignore errors for keys that don't exist
+            console.log(`[DELETE ACCOUNT] Key ${key} not found or already deleted`);
+          }
+        })
+      );
+
+      // Clear auth from store
+      try {
+        const setAuth = useAuthStore.getState().setAuth;
+        if (setAuth) {
+          setAuth(null);
+          console.log("[DELETE ACCOUNT] Auth cleared from store");
+        }
+      } catch (storeError) {
+        console.warn("[DELETE ACCOUNT] Error clearing auth store (continuing):", storeError);
+      }
+
+      console.log("[DELETE ACCOUNT] All user data cleared successfully");
+
+      // Close the modal first
+      setShowDeleteModal(false);
+      setIsDeleting(false);
+
+      // Navigate to onboarding (works on all platforms)
+      console.log("[DELETE ACCOUNT] Navigating to onboarding...");
+      // Use a small delay to ensure modal closes first
+      setTimeout(() => {
+        router.replace("/onboarding");
+      }, 100);
+
+      // On Android, also try to exit the app (optional)
+      if (Platform.OS === "android" && BackHandler) {
+        try {
+          BackHandler.exitApp();
+        } catch (exitError) {
+          console.log("[DELETE ACCOUNT] exitApp not available, already navigating to onboarding");
+        }
+      }
     } catch (error) {
-      console.error("Error deleting account:", error);
-      console.error("Error stack:", error.stack);
+      console.error("[DELETE ACCOUNT] Error deleting account:", error);
+      console.error("[DELETE ACCOUNT] Error stack:", error.stack);
       setIsDeleting(false);
       setShowDeleteModal(false);
-      alert("Failed to delete account. Please try again.");
+      Alert.alert(
+        "Delete Failed",
+        "Failed to delete account. Please try again. If the problem persists, contact support.",
+        [{ text: "OK" }]
+      );
     }
   };
 

@@ -171,9 +171,25 @@ export default function EndlessComplete() {
       if (error.message === "OFFLINE") {
         alert("No internet connection. Please check your connection and try again.");
       } else if (error.message === "ALL_TRADES_USED_TODAY") {
-        setShowAllTradesModal(true);
+        // Check if notifications are already enabled
+        const notificationsEnabled = await SecureStore.getItemAsync("daily_notifications_enabled");
+        if (notificationsEnabled === "true") {
+          // Notifications already enabled - show simple message
+          alert("New trades available tomorrow at 10am. You'll get a reminder!");
+        } else {
+          // Notifications not enabled - show modal with prompt
+          setShowAllTradesModal(true);
+        }
       } else if (error.message.includes("No trades are currently available")) {
-        setShowAllTradesModal(true);
+        // Check if notifications are already enabled
+        const notificationsEnabled = await SecureStore.getItemAsync("daily_notifications_enabled");
+        if (notificationsEnabled === "true") {
+          // Notifications already enabled - show simple message
+          alert("New trades available tomorrow at 10am. You'll get a reminder!");
+        } else {
+          // Notifications not enabled - show modal with prompt
+          setShowAllTradesModal(true);
+        }
       } else {
         alert("Failed to start new game. Please try again.");
       }
