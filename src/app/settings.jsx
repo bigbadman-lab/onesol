@@ -18,6 +18,8 @@ import {
   ExternalLink,
   Trash2,
   Home,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react-native";
 import * as Linking from "expo-linking";
 import useDeviceId from "../utils/useDeviceId";
@@ -50,6 +52,26 @@ export default function Settings() {
   const [isLoadingEmail, setIsLoadingEmail] = useState(true);
   const [savingEmail, setSavingEmail] = useState(false);
   const [emailError, setEmailError] = useState("");
+  
+  // Collapsible sections state
+  const [expandedSections, setExpandedSections] = useState({
+    nickname: false,
+    email: true, // Keep email expanded by default since it's important
+    deviceId: false,
+    about: false,
+    disclaimer: false,
+    contestDisclaimer: false,
+    links: false,
+    version: false,
+    deleteAccount: false,
+  });
+  
+  const toggleSection = (section) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
 
   // Email modal state - using Alert.prompt instead of Modal+TextInput
 
@@ -238,430 +260,7 @@ export default function Settings() {
           </TouchableOpacity>
         </View>
 
-        {/* Nickname Card - Display Only */}
-        <View
-          style={{
-            marginHorizontal: 20,
-            marginTop: 20,
-            backgroundColor: "#1A1A1A",
-            borderRadius: 16,
-            padding: 24,
-            borderWidth: 2,
-            borderColor: "#333333",
-            minHeight: 100,
-          }}
-        >
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 16,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 18,
-                fontWeight: "700",
-                color: "#7B68EE",
-              }}
-            >
-              NICKNAME
-            </Text>
-          </View>
-
-          {loadingDeviceId ? (
-            <ActivityIndicator size="small" color="#7B68EE" />
-          ) : (
-            <>
-              <View
-                style={{
-                  paddingVertical: 12,
-                  paddingHorizontal: 12,
-                  backgroundColor: friendlyName ? "#2A2A2A" : "transparent",
-                  borderRadius: 8,
-                  borderWidth: friendlyName ? 1 : 0,
-                  borderColor: "#444444",
-                  marginBottom: 12,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 16,
-                    color: "#FFFFFF",
-                    lineHeight: 24,
-                  }}
-                >
-                  {friendlyName || "Not set"}
-                </Text>
-              </View>
-              <View
-                style={{
-                  height: 1,
-                  backgroundColor: "#333333",
-                  marginVertical: 16,
-                }}
-              />
-              <Text
-                style={{
-                  fontSize: 14,
-                  color: "#999999",
-                  lineHeight: 20,
-                }}
-              >
-                This is how you appear on the leaderboard.
-              </Text>
-            </>
-          )}
-        </View>
-
-        {/* Email Card - Using Modal for TextInput */}
-        <View
-          style={{
-            marginHorizontal: 20,
-            marginTop: 20,
-            backgroundColor: "#1A1A1A",
-            borderRadius: 16,
-            padding: 24,
-            borderWidth: 2,
-            borderColor: "#333333",
-            minHeight: 200,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 18,
-              fontWeight: "700",
-              color: "#7B68EE",
-              marginBottom: 16,
-            }}
-          >
-            EMAIL {email ? "✓" : ""}
-          </Text>
-
-          {/* Show loading spinner when loading */}
-          {isLoadingEmail ? (
-            <View style={{ alignItems: "center", marginBottom: 16 }}>
-              <ActivityIndicator size="small" color="#7B68EE" />
-            </View>
-          ) : (
-            <>
-              {/* Display current email or placeholder */}
-              <View
-                style={{
-                  paddingVertical: 12,
-                  paddingHorizontal: 12,
-                  backgroundColor: email ? "#2A2A2A" : "transparent",
-                  borderRadius: 8,
-                  borderWidth: email ? 1 : 0,
-                  borderColor: "#444444",
-                  marginBottom: 12,
-                  minHeight: 48,
-                  justifyContent: "center",
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 16,
-                    color: email ? "#FFFFFF" : "#666666",
-                    lineHeight: 24,
-                  }}
-                >
-                  {email || "No email set"}
-                </Text>
-              </View>
-
-              {/* Button to open email input using Alert.prompt */}
-              <TouchableOpacity
-                onPress={() => {
-                  console.log("Add/Edit Email button pressed");
-                  // Use Alert.prompt as workaround for TextInput crash
-                  Alert.prompt(
-                    email ? "Edit Email" : "Add Email",
-                    "Enter your email address:",
-                    [
-                      {
-                        text: "Cancel",
-                        style: "cancel",
-                      },
-                      {
-                        text: "Save",
-                        onPress: async (inputEmail) => {
-                          if (!inputEmail || !inputEmail.trim()) {
-                            setEmailError("Please enter an email address.");
-                            return;
-                          }
-                          const trimmed = inputEmail.trim();
-                          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-                            setEmailError("Please enter a valid email.");
-                            return;
-                          }
-
-                          setSavingEmail(true);
-                          setEmailError("");
-
-                          try {
-                            console.log("[EMAIL SAVE] Saving email to SecureStore:", trimmed);
-                            await SecureStore.setItemAsync("user_email", trimmed);
-                            console.log("[EMAIL SAVE] Successfully saved to SecureStore");
-                            
-                            // Verify it was saved by reading it back
-                            const verification = await SecureStore.getItemAsync("user_email");
-                            console.log("[EMAIL SAVE] Verification - Read back from SecureStore:", verification);
-                            console.log("[EMAIL SAVE] Verification - Match:", verification === trimmed);
-                            
-                            setEmail(trimmed);
-                            console.log("[EMAIL SAVE] Updated email state to:", trimmed);
-                          } catch (e) {
-                            console.error("[EMAIL SAVE] Failed to save email", e);
-                            setEmailError("Could not save email. Please try again.");
-                          } finally {
-                            setSavingEmail(false);
-                          }
-                        },
-                      },
-                    ],
-                    "plain-text",
-                    email || "",
-                    "email-address"
-                  );
-                }}
-                disabled={savingEmail}
-                style={{
-                  backgroundColor: "#7B68EE",
-                  borderRadius: 8,
-                  paddingVertical: 12,
-                  alignItems: "center",
-                  opacity: savingEmail ? 0.6 : 1,
-                  marginBottom: 12,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: "700",
-                    color: "#FFFFFF",
-                  }}
-                >
-                  {email ? "Edit Email" : "Add Email"}
-                </Text>
-              </TouchableOpacity>
-
-              {!!emailError && (
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: "#FF0000",
-                    marginBottom: 12,
-                  }}
-                >
-                  {emailError}
-                </Text>
-              )}
-
-              <View
-                style={{
-                  height: 1,
-                  backgroundColor: "#333333",
-                  marginVertical: 16,
-                }}
-              />
-              <Text
-                style={{
-                  fontSize: 14,
-                  color: "#999999",
-                  lineHeight: 20,
-                }}
-              >
-                {email
-                  ? "Your email is saved. You're eligible for daily prizes when you win!"
-                  : "Add your email to be eligible for daily prizes. Winners are notified via email."}
-              </Text>
-            </>
-          )}
-        </View>
-
-        {/* Device ID Card */}
-        <View
-          style={{
-            marginHorizontal: 20,
-            marginTop: 20,
-            backgroundColor: "#1A1A1A",
-            borderRadius: 16,
-            padding: 24,
-            borderWidth: 2,
-            borderColor: "#333333",
-            minHeight: 100,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 18,
-              fontWeight: "700",
-              color: "#7B68EE",
-              marginBottom: 16,
-            }}
-          >
-            YOUR DEVICE ID
-          </Text>
-          {loadingDeviceId ? (
-            <ActivityIndicator size="small" color="#7B68EE" />
-          ) : (
-            <Text
-              style={{
-                fontSize: 16,
-                color: "#FFFFFF",
-                lineHeight: 24,
-                fontFamily: "monospace",
-              }}
-            >
-              {deviceId || "Not available"}
-            </Text>
-          )}
-          <View
-            style={{
-              height: 1,
-              backgroundColor: "#333333",
-              marginVertical: 16,
-            }}
-          />
-          <Text
-            style={{
-              fontSize: 14,
-              color: "#999999",
-              lineHeight: 20,
-            }}
-          >
-            This ID is used to track your scores on the leaderboard. It's stored
-            securely on your device.
-          </Text>
-        </View>
-
-        {/* About Card */}
-        <View
-          style={{
-            marginHorizontal: 20,
-            marginTop: 20,
-            backgroundColor: "#1A1A1A",
-            borderRadius: 16,
-            padding: 24,
-            borderWidth: 2,
-            borderColor: "#333333",
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 18,
-              fontWeight: "700",
-              color: "#7B68EE",
-              marginBottom: 16,
-            }}
-          >
-            ABOUT THIS APP
-          </Text>
-          <Text style={{ fontSize: 16, color: "#FFFFFF", lineHeight: 24 }}>
-            An educational chart pattern prediction game. Learn to read market
-            trends and predict whether tokens RUN or RUG based on historical
-            chart patterns.
-          </Text>
-          <View
-            style={{
-              height: 1,
-              backgroundColor: "#333333",
-              marginVertical: 16,
-            }}
-          />
-          <Text
-            style={{
-              fontSize: 14,
-              color: "#999999",
-              lineHeight: 20,
-            }}
-          >
-            100% simulated. No real money. No wallets. Just pure prediction
-            skills.
-          </Text>
-        </View>
-
-        {/* Disclaimer Card */}
-        <View
-          style={{
-            marginHorizontal: 20,
-            marginTop: 20,
-            backgroundColor: "#1A1A1A",
-            borderRadius: 16,
-            padding: 24,
-            borderWidth: 2,
-            borderColor: "#333333",
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 18,
-              fontWeight: "700",
-              color: "#7B68EE",
-              marginBottom: 16,
-            }}
-          >
-            DISCLAIMER
-          </Text>
-          <Text style={{ fontSize: 14, color: "#FFFFFF", lineHeight: 22 }}>
-            This app is designed for educational and entertainment purposes
-            only.
-            {"\n\n"}
-            All market activity, trades, balances, profits, and losses displayed
-            in the app are <Text style={{ fontWeight: "700" }}>simulated</Text>{" "}
-            and use <Text style={{ fontWeight: "700" }}>virtual funds</Text>. No
-            real cryptocurrency, money, or financial assets are involved.
-            {"\n\n"}
-            This app does <Text style={{ fontWeight: "700" }}>not</Text> support
-            real trading, real wallets, deposits, withdrawals, or transactions
-            of any kind.
-            {"\n\n"}
-            Nothing in this app constitutes financial, investment, or trading
-            advice. Any outcomes shown are hypothetical and based on historical
-            data for educational purposes only.
-          </Text>
-        </View>
-
-        {/* Contest Disclaimer Card */}
-        <View
-          style={{
-            marginHorizontal: 20,
-            marginTop: 20,
-            backgroundColor: "#1A1A1A",
-            borderRadius: 16,
-            padding: 24,
-            borderWidth: 2,
-            borderColor: "#333333",
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 18,
-              fontWeight: "700",
-              color: "#7B68EE",
-              marginBottom: 16,
-            }}
-          >
-            CONTEST DISCLAIMER
-          </Text>
-          <Text style={{ fontSize: 14, color: "#FFFFFF", lineHeight: 22 }}>
-            This contest/sweepstakes is in no way sponsored, endorsed, or
-            administered by Apple Inc. Apple is not a sponsor of, or participant
-            in, this promotion.
-            {"\n\n"}
-            Apple is not responsible for this contest/sweepstakes or any of its
-            rules, procedures, or outcomes. Any questions, comments, or complaints
-            regarding this contest/sweepstakes should be directed to the contest
-            administrator, not Apple.
-            {"\n\n"}
-            This contest/sweepstakes is subject to all applicable federal, state,
-            and local laws and regulations. Void where prohibited by law.
-          </Text>
-        </View>
-
-        {/* Links Section */}
+        {/* Nickname Card - Collapsible */}
         <View
           style={{
             marginHorizontal: 20,
@@ -673,142 +272,795 @@ export default function Settings() {
             overflow: "hidden",
           }}
         >
-          {/* FAQ */}
           <TouchableOpacity
+            onPress={() => toggleSection("nickname")}
             style={{
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
-              padding: 20,
-              borderBottomWidth: 1,
-              borderBottomColor: "#333333",
-            }}
-            onPress={() => {
-              Linking.openURL("https://1sol.fun/faq");
+              padding: 24,
             }}
           >
             <Text
               style={{
-                fontSize: 16,
-                fontWeight: "600",
-                color: "#FFFFFF",
+                fontSize: 18,
+                fontWeight: "700",
+                color: "#7B68EE",
               }}
             >
-              FAQ
+              NICKNAME
             </Text>
-            <ExternalLink size={20} color="#999999" />
+            {expandedSections.nickname ? (
+              <ChevronUp size={20} color="#7B68EE" />
+            ) : (
+              <ChevronDown size={20} color="#7B68EE" />
+            )}
           </TouchableOpacity>
-
-          {/* Contest Rules */}
-          <TouchableOpacity
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: 20,
-              borderBottomWidth: 1,
-              borderBottomColor: "#333333",
-            }}
-            onPress={() => {
-              Linking.openURL("https://1sol.fun/contest-rules");
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 16,
-                fontWeight: "600",
-                color: "#FFFFFF",
-              }}
-            >
-              Contest Rules
-            </Text>
-            <ExternalLink size={20} color="#999999" />
-          </TouchableOpacity>
-
-          {/* Contact */}
-          <TouchableOpacity
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: 20,
-              borderBottomWidth: 1,
-              borderBottomColor: "#333333",
-            }}
-            onPress={() => {
-              Linking.openURL("https://1sol.fun/contact");
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 16,
-                fontWeight: "600",
-                color: "#FFFFFF",
-              }}
-            >
-              Contact
-            </Text>
-            <ExternalLink size={20} color="#999999" />
-          </TouchableOpacity>
-
-          {/* Privacy Policy */}
-          <TouchableOpacity
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: 20,
-            }}
-            onPress={() => {
-              Linking.openURL("https://1sol.fun/privacy");
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 16,
-                fontWeight: "600",
-                color: "#FFFFFF",
-              }}
-            >
-              Privacy Policy
-            </Text>
-            <ExternalLink size={20} color="#999999" />
-          </TouchableOpacity>
+          {expandedSections.nickname && (
+            <View style={{ paddingHorizontal: 24, paddingBottom: 24 }}>
+              {loadingDeviceId ? (
+                <ActivityIndicator size="small" color="#7B68EE" />
+              ) : (
+                <>
+                  <View
+                    style={{
+                      paddingVertical: 12,
+                      paddingHorizontal: 12,
+                      backgroundColor: friendlyName ? "#2A2A2A" : "transparent",
+                      borderRadius: 8,
+                      borderWidth: friendlyName ? 1 : 0,
+                      borderColor: "#444444",
+                      marginBottom: 12,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        color: "#FFFFFF",
+                        lineHeight: 24,
+                      }}
+                    >
+                      {friendlyName || "Not set"}
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      height: 1,
+                      backgroundColor: "#333333",
+                      marginVertical: 16,
+                    }}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      color: "#999999",
+                      lineHeight: 20,
+                    }}
+                  >
+                    This is how you appear on the leaderboard.
+                  </Text>
+                </>
+              )}
+            </View>
+          )}
         </View>
 
-        {/* Version */}
-        <View style={{ alignItems: "center", marginTop: 40 }}>
-          <Text style={{ fontSize: 14, color: "#666666" }}>Version 1.0.0</Text>
-        </View>
-
-        {/* Delete Account Button */}
-        <View style={{ marginHorizontal: 20, marginTop: 20 }}>
+        {/* Email Card - Collapsible */}
+        <View
+          style={{
+            marginHorizontal: 20,
+            marginTop: 20,
+            backgroundColor: "#1A1A1A",
+            borderRadius: 16,
+            borderWidth: 2,
+            borderColor: "#333333",
+            overflow: "hidden",
+          }}
+        >
           <TouchableOpacity
-            onPress={() => setShowDeleteModal(true)}
+            onPress={() => toggleSection("email")}
             style={{
-              backgroundColor: "#1A1A1A",
-              borderWidth: 2,
-              borderColor: "#FF0000",
-              borderRadius: 16,
-              paddingVertical: 16,
-              paddingHorizontal: 24,
               flexDirection: "row",
               alignItems: "center",
-              justifyContent: "center",
-              gap: 12,
+              justifyContent: "space-between",
+              padding: 24,
             }}
           >
-            <Trash2 size={20} color="#FF0000" />
             <Text
               style={{
-                fontSize: 16,
+                fontSize: 18,
+                fontWeight: "700",
+                color: "#7B68EE",
+              }}
+            >
+              EMAIL {email ? "✓" : ""}
+            </Text>
+            {expandedSections.email ? (
+              <ChevronUp size={20} color="#7B68EE" />
+            ) : (
+              <ChevronDown size={20} color="#7B68EE" />
+            )}
+          </TouchableOpacity>
+          {expandedSections.email && (
+            <View style={{ paddingHorizontal: 24, paddingBottom: 24 }}>
+              {/* Show loading spinner when loading */}
+              {isLoadingEmail ? (
+                <View style={{ alignItems: "center", marginBottom: 16 }}>
+                  <ActivityIndicator size="small" color="#7B68EE" />
+                </View>
+              ) : (
+                <>
+                  {/* Display current email or placeholder */}
+                  <View
+                    style={{
+                      paddingVertical: 12,
+                      paddingHorizontal: 12,
+                      backgroundColor: email ? "#2A2A2A" : "transparent",
+                      borderRadius: 8,
+                      borderWidth: email ? 1 : 0,
+                      borderColor: "#444444",
+                      marginBottom: 12,
+                      minHeight: 48,
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        color: email ? "#FFFFFF" : "#666666",
+                        lineHeight: 24,
+                      }}
+                    >
+                      {email || "No email set"}
+                    </Text>
+                  </View>
+
+                  {/* Button to open email input using Alert.prompt */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      console.log("Add/Edit Email button pressed");
+                      // Use Alert.prompt as workaround for TextInput crash
+                      Alert.prompt(
+                        email ? "Edit Email" : "Add Email",
+                        "Enter your email address:",
+                        [
+                          {
+                            text: "Cancel",
+                            style: "cancel",
+                          },
+                          {
+                            text: "Save",
+                            onPress: async (inputEmail) => {
+                              // Basic validation with immediate feedback
+                              if (!inputEmail || !inputEmail.trim()) {
+                                Alert.alert("Invalid Email", "Please enter an email address.");
+                                return;
+                              }
+                              
+                              const trimmed = inputEmail.trim();
+                              
+                              // Enhanced email validation regex
+                              const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                              if (!emailRegex.test(trimmed)) {
+                                Alert.alert("Invalid Email", "Please enter a valid email address (e.g., user@example.com).");
+                                return;
+                              }
+
+                              // Check if this is the first time saving (email was empty before)
+                              const isFirstTimeSave = !email || email.trim() === "";
+                              
+                              setSavingEmail(true);
+                              setEmailError("");
+
+                              try {
+                                console.log("[EMAIL SAVE] Saving email to SecureStore:", trimmed);
+                                console.log("[EMAIL SAVE] Is first time save:", isFirstTimeSave);
+                                
+                                await SecureStore.setItemAsync("user_email", trimmed);
+                                console.log("[EMAIL SAVE] Successfully saved to SecureStore");
+                                
+                                // Verify it was saved by reading it back
+                                const verification = await SecureStore.getItemAsync("user_email");
+                                console.log("[EMAIL SAVE] Verification - Read back from SecureStore:", verification);
+                                console.log("[EMAIL SAVE] Verification - Match:", verification === trimmed);
+                                
+                                setEmail(trimmed);
+                                console.log("[EMAIL SAVE] Updated email state to:", trimmed);
+                                
+                                // Trigger welcome email on first time save only
+                                if (isFirstTimeSave) {
+                                  console.log("[EMAIL SAVE] First time save - triggering welcome email");
+                                  try {
+                                    const response = await fetch("/api/user/profile", {
+                                      method: "POST",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                      },
+                                      body: JSON.stringify({
+                                        email: trimmed,
+                                      }),
+                                    });
+                                    
+                                    if (response.ok) {
+                                      console.log("[EMAIL SAVE] Welcome email trigger sent successfully");
+                                    } else {
+                                      console.warn("[EMAIL SAVE] Welcome email trigger failed:", response.status);
+                                    }
+                                  } catch (emailError) {
+                                    // Don't fail the save if email trigger fails
+                                    console.error("[EMAIL SAVE] Welcome email trigger error (non-blocking):", emailError);
+                                  }
+                                }
+                              } catch (e) {
+                                console.error("[EMAIL SAVE] Failed to save email", e);
+                                Alert.alert("Error", "Could not save email. Please try again.");
+                              } finally {
+                                setSavingEmail(false);
+                              }
+                            },
+                          },
+                        ],
+                        "plain-text",
+                        email || "",
+                        "email-address"
+                      );
+                    }}
+                    disabled={savingEmail}
+                    style={{
+                      backgroundColor: "#7B68EE",
+                      borderRadius: 8,
+                      paddingVertical: 12,
+                      alignItems: "center",
+                      opacity: savingEmail ? 0.6 : 1,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: "700",
+                        color: "#FFFFFF",
+                      }}
+                    >
+                      {email ? "Edit Email" : "Add Email"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {!!emailError && (
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: "#FF0000",
+                        marginBottom: 12,
+                      }}
+                    >
+                      {emailError}
+                    </Text>
+                  )}
+
+                  <View
+                    style={{
+                      height: 1,
+                      backgroundColor: "#333333",
+                      marginVertical: 16,
+                    }}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      color: "#999999",
+                      lineHeight: 20,
+                    }}
+                  >
+                    {email
+                      ? "Your email is saved. You're eligible for daily prizes when you win!"
+                      : "Add your email to be eligible for daily prizes. Winners are notified via email."}
+                  </Text>
+                </>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Device ID Card - Collapsible */}
+        <View
+          style={{
+            marginHorizontal: 20,
+            marginTop: 20,
+            backgroundColor: "#1A1A1A",
+            borderRadius: 16,
+            borderWidth: 2,
+            borderColor: "#333333",
+            overflow: "hidden",
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => toggleSection("deviceId")}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: 24,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "700",
+                color: "#7B68EE",
+              }}
+            >
+              YOUR DEVICE ID
+            </Text>
+            {expandedSections.deviceId ? (
+              <ChevronUp size={20} color="#7B68EE" />
+            ) : (
+              <ChevronDown size={20} color="#7B68EE" />
+            )}
+          </TouchableOpacity>
+          {expandedSections.deviceId && (
+            <View style={{ paddingHorizontal: 24, paddingBottom: 24 }}>
+              {loadingDeviceId ? (
+                <ActivityIndicator size="small" color="#7B68EE" />
+              ) : (
+                <Text
+                  style={{
+                    fontSize: 16,
+                    color: "#FFFFFF",
+                    lineHeight: 24,
+                    fontFamily: "monospace",
+                  }}
+                >
+                  {deviceId || "Not available"}
+                </Text>
+              )}
+              <View
+                style={{
+                  height: 1,
+                  backgroundColor: "#333333",
+                  marginVertical: 16,
+                }}
+              />
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: "#999999",
+                  lineHeight: 20,
+                }}
+              >
+                This ID is used to track your scores on the leaderboard. It's stored
+                securely on your device.
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* About Card - Collapsible */}
+        <View
+          style={{
+            marginHorizontal: 20,
+            marginTop: 20,
+            backgroundColor: "#1A1A1A",
+            borderRadius: 16,
+            borderWidth: 2,
+            borderColor: "#333333",
+            overflow: "hidden",
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => toggleSection("about")}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: 24,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "700",
+                color: "#7B68EE",
+              }}
+            >
+              ABOUT THIS APP
+            </Text>
+            {expandedSections.about ? (
+              <ChevronUp size={20} color="#7B68EE" />
+            ) : (
+              <ChevronDown size={20} color="#7B68EE" />
+            )}
+          </TouchableOpacity>
+          {expandedSections.about && (
+            <View style={{ paddingHorizontal: 24, paddingBottom: 24 }}>
+              <Text style={{ fontSize: 16, color: "#FFFFFF", lineHeight: 24 }}>
+                An educational chart pattern prediction game. Learn to read market
+                trends and predict whether tokens RUN or RUG based on historical
+                chart patterns.
+              </Text>
+              <View
+                style={{
+                  height: 1,
+                  backgroundColor: "#333333",
+                  marginVertical: 16,
+                }}
+              />
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: "#999999",
+                  lineHeight: 20,
+                }}
+              >
+                100% simulated. No real money. No wallets. Just pure prediction
+                skills.
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Disclaimer Card - Collapsible */}
+        <View
+          style={{
+            marginHorizontal: 20,
+            marginTop: 20,
+            backgroundColor: "#1A1A1A",
+            borderRadius: 16,
+            borderWidth: 2,
+            borderColor: "#333333",
+            overflow: "hidden",
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => toggleSection("disclaimer")}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: 24,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "700",
+                color: "#7B68EE",
+              }}
+            >
+              DISCLAIMER
+            </Text>
+            {expandedSections.disclaimer ? (
+              <ChevronUp size={20} color="#7B68EE" />
+            ) : (
+              <ChevronDown size={20} color="#7B68EE" />
+            )}
+          </TouchableOpacity>
+          {expandedSections.disclaimer && (
+            <View style={{ paddingHorizontal: 24, paddingBottom: 24 }}>
+              <Text style={{ fontSize: 14, color: "#FFFFFF", lineHeight: 22 }}>
+                This app is designed for educational and entertainment purposes
+                only.
+                {"\n\n"}
+                All market activity, trades, balances, profits, and losses displayed
+                in the app are <Text style={{ fontWeight: "700" }}>simulated</Text>{" "}
+                and use <Text style={{ fontWeight: "700" }}>virtual funds</Text>. No
+                real cryptocurrency, money, or financial assets are involved.
+                {"\n\n"}
+                This app does <Text style={{ fontWeight: "700" }}>not</Text> support
+                real trading, real wallets, deposits, withdrawals, or transactions
+                of any kind.
+                {"\n\n"}
+                Nothing in this app constitutes financial, investment, or trading
+                advice. Any outcomes shown are hypothetical and based on historical
+                data for educational purposes only.
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Contest Disclaimer Card - Collapsible */}
+        <View
+          style={{
+            marginHorizontal: 20,
+            marginTop: 20,
+            backgroundColor: "#1A1A1A",
+            borderRadius: 16,
+            borderWidth: 2,
+            borderColor: "#333333",
+            overflow: "hidden",
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => toggleSection("contestDisclaimer")}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: 24,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "700",
+                color: "#7B68EE",
+              }}
+            >
+              CONTEST DISCLAIMER
+            </Text>
+            {expandedSections.contestDisclaimer ? (
+              <ChevronUp size={20} color="#7B68EE" />
+            ) : (
+              <ChevronDown size={20} color="#7B68EE" />
+            )}
+          </TouchableOpacity>
+          {expandedSections.contestDisclaimer && (
+            <View style={{ paddingHorizontal: 24, paddingBottom: 24 }}>
+              <Text style={{ fontSize: 14, color: "#FFFFFF", lineHeight: 22 }}>
+                This promotion is not sponsored, endorsed, or administered by Apple Inc. Apple is not involved in this contest in any way.
+                {"\n\n"}
+                For questions, comments, or concerns about this contest, please contact the contest administrator directly. Apple is not responsible for this promotion or its outcomes.
+                {"\n\n"}
+                This contest is subject to all applicable federal, state, and local laws. Void where prohibited.
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Links Section - Collapsible */}
+        <View
+          style={{
+            marginHorizontal: 20,
+            marginTop: 20,
+            backgroundColor: "#1A1A1A",
+            borderRadius: 16,
+            borderWidth: 2,
+            borderColor: "#333333",
+            overflow: "hidden",
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => toggleSection("links")}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: 24,
+              borderBottomWidth: expandedSections.links ? 1 : 0,
+              borderBottomColor: "#333333",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "700",
+                color: "#7B68EE",
+              }}
+            >
+              LINKS
+            </Text>
+            {expandedSections.links ? (
+              <ChevronUp size={20} color="#7B68EE" />
+            ) : (
+              <ChevronDown size={20} color="#7B68EE" />
+            )}
+          </TouchableOpacity>
+          {expandedSections.links && (
+            <>
+              {/* FAQ */}
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: 20,
+                  borderBottomWidth: 1,
+                  borderBottomColor: "#333333",
+                }}
+                onPress={() => {
+                  Linking.openURL("https://1sol.fun/faq");
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  FAQ
+                </Text>
+                <ExternalLink size={20} color="#999999" />
+              </TouchableOpacity>
+
+              {/* Contest Rules */}
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: 20,
+                  borderBottomWidth: 1,
+                  borderBottomColor: "#333333",
+                }}
+                onPress={() => {
+                  Linking.openURL("https://1sol.fun/contest-rules");
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  Contest Rules
+                </Text>
+                <ExternalLink size={20} color="#999999" />
+              </TouchableOpacity>
+
+              {/* Contact */}
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: 20,
+                  borderBottomWidth: 1,
+                  borderBottomColor: "#333333",
+                }}
+                onPress={() => {
+                  Linking.openURL("https://1sol.fun/contact");
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  Contact
+                </Text>
+                <ExternalLink size={20} color="#999999" />
+              </TouchableOpacity>
+
+              {/* Privacy Policy */}
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: 20,
+                }}
+                onPress={() => {
+                  Linking.openURL("https://1sol.fun/privacy");
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  Privacy Policy
+                </Text>
+                <ExternalLink size={20} color="#999999" />
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+
+        {/* Version - Collapsible */}
+        <View
+          style={{
+            marginHorizontal: 20,
+            marginTop: 20,
+            backgroundColor: "#1A1A1A",
+            borderRadius: 16,
+            borderWidth: 2,
+            borderColor: "#333333",
+            overflow: "hidden",
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => toggleSection("version")}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: 24,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "700",
+                color: "#7B68EE",
+              }}
+            >
+              VERSION
+            </Text>
+            {expandedSections.version ? (
+              <ChevronUp size={20} color="#7B68EE" />
+            ) : (
+              <ChevronDown size={20} color="#7B68EE" />
+            )}
+          </TouchableOpacity>
+          {expandedSections.version && (
+            <View style={{ paddingHorizontal: 24, paddingBottom: 24, alignItems: "center" }}>
+              <Text style={{ fontSize: 14, color: "#666666" }}>Version 1.0.0</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Delete Account Button - Collapsible */}
+        <View
+          style={{
+            marginHorizontal: 20,
+            marginTop: 20,
+            backgroundColor: "#1A1A1A",
+            borderRadius: 16,
+            borderWidth: 2,
+            borderColor: "#333333",
+            overflow: "hidden",
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => toggleSection("deleteAccount")}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: 24,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
                 fontWeight: "700",
                 color: "#FF0000",
               }}
             >
-              Delete Account
+              DELETE ACCOUNT
             </Text>
+            {expandedSections.deleteAccount ? (
+              <ChevronUp size={20} color="#FF0000" />
+            ) : (
+              <ChevronDown size={20} color="#FF0000" />
+            )}
           </TouchableOpacity>
+          {expandedSections.deleteAccount && (
+            <View style={{ paddingHorizontal: 24, paddingBottom: 24 }}>
+              <TouchableOpacity
+                onPress={() => setShowDeleteModal(true)}
+                style={{
+                  backgroundColor: "#1A1A1A",
+                  borderWidth: 2,
+                  borderColor: "#FF0000",
+                  borderRadius: 12,
+                  paddingVertical: 14,
+                  paddingHorizontal: 24,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 12,
+                }}
+              >
+                <Trash2 size={20} color="#FF0000" />
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "700",
+                    color: "#FF0000",
+                  }}
+                >
+                  Delete Account
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </ScrollView>
 
