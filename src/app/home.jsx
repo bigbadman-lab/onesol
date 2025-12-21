@@ -61,7 +61,7 @@ export default function Home() {
         const notificationsEnabled = await SecureStore.getItemAsync("daily_notifications_enabled");
         if (notificationsEnabled === "true") {
           // Notifications already enabled - show simple message
-          alert("New trades available tomorrow at 10am. You'll get a reminder!");
+          alert("New trades available at midnight. You'll get a reminder at 10am!");
         } else {
           // Notifications not enabled - show modal with prompt
           setShowAllTradesModal(true);
@@ -496,7 +496,7 @@ export default function Home() {
                 marginBottom: 30,
               }}
             >
-              You've seen all available trades for today. New trades will be available tomorrow at 10am.
+              You've seen all available trades for today. New trades will be available at midnight.
               {"\n\n"}
               Would you like to get a daily reminder when new trades are ready?
             </Text>

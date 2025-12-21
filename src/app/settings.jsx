@@ -727,7 +727,7 @@ export default function Settings() {
                       lineHeight: 20,
                     }}
                   >
-                    Get notified daily at 10am when new trades are available
+                    Get notified daily at 10am when new trades reset
                   </Text>
                 </View>
                 {isTogglingNotifications ? (
@@ -786,7 +786,7 @@ export default function Settings() {
                 }}
               >
                 {notificationsEnabled
-                  ? "Daily notifications are enabled. You'll receive a reminder at 10am when new trades are available."
+                  ? "Daily notifications are enabled. You'll receive a reminder at 10am when new trades reset."
                   : "Enable daily notifications to get reminded when new trades are ready each day."}
               </Text>
             </View>
@@ -1028,11 +1028,58 @@ export default function Settings() {
           {expandedSections.contestDisclaimer && (
             <View style={{ paddingHorizontal: 24, paddingBottom: 24 }}>
               <Text style={{ fontSize: 14, color: "#FFFFFF", lineHeight: 22 }}>
-                This promotion is not sponsored, endorsed, or administered by Apple Inc. Apple is not involved in this contest in any way.
+                <Text style={{ fontWeight: "700", textTransform: "uppercase" }}>
+                  APPLE IS NOT A SPONSOR OR INVOLVED IN THIS ACTIVITY IN ANY MANNER. THIS PROMOTION IS NOT SPONSORED, ENDORSED, ADMINISTERED BY, OR ASSOCIATED WITH APPLE INC. APPLE IS NOT RESPONSIBLE FOR THIS PROMOTION OR ITS OUTCOMES.
+                </Text>
                 {"\n\n"}
-                For questions, comments, or concerns about this contest, please contact the contest administrator directly. Apple is not responsible for this promotion or its outcomes.
+                <Text style={{ fontWeight: "700" }}>Contest Description</Text>
+                {"\n"}The Daily Leaderboard Challenge is a skill-based contest where participants compete to achieve the highest score by correctly predicting chart patterns in simulated trading scenarios. One winner is selected daily based on their leaderboard ranking.
                 {"\n\n"}
-                This contest is subject to all applicable federal, state, and local laws. Void where prohibited.
+                <Text style={{ fontWeight: "700" }}>Eligibility</Text>
+                {"\n"}• Must be 13 years of age or older
+                {"\n"}• Contest is open worldwide
+                {"\n"}• Employees of the Sponsor and their immediate families are not eligible
+                {"\n"}• Must have a valid email address to claim prizes
+                {"\n"}• Must comply with all applicable laws and regulations
+                {"\n\n"}
+                <Text style={{ fontWeight: "700" }}>How to Enter</Text>
+                {"\n"}• Download and install the app
+                {"\n"}• Play the game and complete trading sessions
+                {"\n"}• Your score is automatically submitted to the leaderboard
+                {"\n"}• Add your email address in Settings to be eligible for prizes
+                {"\n"}• No purchase necessary to enter or win.
+                {"\n\n"}
+                <Text style={{ fontWeight: "700" }}>Winner Selection</Text>
+                {"\n"}• One winner is selected daily
+                {"\n"}• Winner is determined by the highest final SOL balance (final_sol) on the leaderboard for that day
+                {"\n"}• In case of a tie, the winner will be determined by the highest correct count (correct_count)
+                {"\n"}• If still tied, the earliest submission time will determine the winner
+                {"\n"}• Winners are selected at the end of each contest day
+                {"\n"}• Contest day resets daily at midnight local time
+                {"\n\n"}
+                <Text style={{ fontWeight: "700" }}>Prizes</Text>
+                {"\n"}• Daily Prize: 50% of fees generated from the official $ONESOL token for that day
+                {"\n"}• Prize value varies daily based on token fees
+                {"\n"}• Prize will be distributed in cryptocurrency (SOL or $ONESOL)
+                {"\n"}• Prize amount will be calculated and confirmed after the contest day ends
+                {"\n"}• Only one prize per person per day
+                {"\n\n"}
+                <Text style={{ fontWeight: "700" }}>Claim Process</Text>
+                {"\n"}• Winners will be notified via email within 24 hours of selection
+                {"\n"}• The notification email will contain a private key to a wallet holding your prize (SOL or $ONESOL tokens)
+                {"\n"}• Import the private key into your preferred Solana wallet to access your prize
+                {"\n"}• Winners should transfer their prize to their personal wallet immediately upon receipt
+                {"\n"}• The Sponsor is not responsible for any loss of funds after the private key has been delivered
+                {"\n"}• If a winner does not claim within 14 days of receiving the email, the prize may be forfeited
+                {"\n\n"}
+                <Text style={{ fontWeight: "700" }}>Disqualification</Text>
+                {"\n"}Participants may be disqualified for cheating, fraud, use of automated systems, violation of these rules or terms of service, providing false information, or any activity that undermines the integrity of the contest.
+                {"\n\n"}
+                <Text style={{ fontWeight: "700" }}>General Terms</Text>
+                {"\n"}By participating, you agree to these official rules. Sponsor reserves the right to modify or cancel the contest at any time. All decisions by the Sponsor are final. Taxes on prizes are the sole responsibility of the winner. Void where prohibited by law. Contest is subject to all applicable federal, state, and local laws.
+                {"\n\n"}
+                <Text style={{ fontWeight: "700" }}>Questions?</Text>
+                {"\n"}For questions about this contest, contact: hello@1sol.fun
               </Text>
             </View>
           )}

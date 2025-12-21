@@ -233,7 +233,7 @@ export default function ContestRules() {
               {"\n"}• If still tied, the earliest submission time will determine
               the winner
               {"\n"}• Winners are selected at the end of each contest day
-              {"\n"}• Contest day resets daily at 10:00 AM local time
+              {"\n"}• Contest day resets daily at midnight local time
             </Text>
           </View>
 
