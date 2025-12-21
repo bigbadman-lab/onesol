@@ -38,13 +38,16 @@ export default function RootLayout() {
     async function checkOnboardingAndConsent() {
       if (hasNavigated) return;
 
+      // Wait for router to be ready before attempting navigation
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       // Add a timeout fallback - proceed after 1 second even if isReady is false
       const timeoutId = setTimeout(async () => {
         if (!hasNavigated) {
           console.warn("Proceeding with navigation despite isReady state");
           await performNavigation();
         }
-      }, 1000);
+      }, 1500);
 
       // If isReady is true, proceed immediately
       if (isReady) {
@@ -71,6 +74,9 @@ export default function RootLayout() {
           // Navigate immediately based on onboarding and consent (before hiding splash)
           // This prevents any flash of the wrong screen
           try {
+            // Small delay to ensure router is mounted
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
             if (consent === "true") {
               router.replace("/home");
             } else if (onboarding === "true") {
@@ -80,8 +86,13 @@ export default function RootLayout() {
             }
           } catch (navError) {
             console.error("Navigation error:", navError);
-            // Fallback navigation
-            router.replace("/onboarding");
+            // Wait a bit and retry fallback navigation
+            await new Promise(resolve => setTimeout(resolve, 100));
+            try {
+              router.replace("/onboarding");
+            } catch (retryError) {
+              console.error("Retry navigation also failed:", retryError);
+            }
           }
 
           setHasNavigated(true);
@@ -99,9 +110,12 @@ export default function RootLayout() {
           console.error("Error checking onboarding/consent:", error);
           // Always try to navigate and hide splash, even on error
           try {
+            // Wait a bit before retry navigation
+            await new Promise(resolve => setTimeout(resolve, 200));
             router.replace("/onboarding");
           } catch (navError) {
             console.error("Failed to navigate on error:", navError);
+            // App should still render the default route
           }
           setHasNavigated(true);
           try {

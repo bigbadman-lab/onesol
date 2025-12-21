@@ -10,6 +10,7 @@ import {
   FRIENDLY_NAME_KEY,
   generateUUID,
   generateFriendlyName,
+  useDeviceIdStore,
 } from "../utils/useDeviceId";
 
 export default function Consent() {
@@ -36,6 +37,9 @@ export default function Consent() {
         friendlyName = generateFriendlyName();
         await SecureStore.setItemAsync(FRIENDLY_NAME_KEY, friendlyName);
       }
+      
+      // Update the store so components can immediately access the values
+      useDeviceIdStore.setState({ deviceId, friendlyName, initialized: true, loading: false });
       
       // Navigate to home
       router.replace("/home");

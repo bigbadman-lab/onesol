@@ -6,8 +6,10 @@ import {
   Modal,
   BackHandler,
   ActivityIndicator,
-  TextInput,
+  Alert,
 } from "react-native";
+// TextInput import removed - causing page crash even with polyfill
+// Will use alternative approach
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -24,112 +26,92 @@ import * as SecureStore from "expo-secure-store";
 import { Image } from "expo-image";
 
 export default function Settings() {
+  console.log("Settings: Component function called");
+  
   const router = useRouter();
+  console.log("Settings: router obtained");
   const insets = useSafeAreaInsets();
+  console.log("Settings: insets obtained");
   const { deviceId, friendlyName, loading: loadingDeviceId } = useDeviceId();
+  console.log("Settings: useDeviceId completed", { deviceId: deviceId ? "exists" : "null", loading: loadingDeviceId });
+  
+  const instanceId = useRef(Math.random().toString(16).slice(2));
+  
+  useEffect(() => {
+    console.log("Settings mounted", instanceId.current);
+    return () => console.log("Settings unmounted", instanceId.current);
+  }, []);
   
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Email state
   const [email, setEmail] = useState("");
-  const [loadingEmail, setLoadingEmail] = useState(true);
+  const [isLoadingEmail, setIsLoadingEmail] = useState(true);
   const [savingEmail, setSavingEmail] = useState(false);
   const [emailError, setEmailError] = useState("");
-  
-  // Ref to track if email has been loaded and prevent multiple loads
-  const emailLoadedRef = useRef(false);
 
-  // Load email on mount - moved inside useEffect to prevent loops
+  // Email modal state - using Alert.prompt instead of Modal+TextInput
+
+  // Track isLoadingEmail changes
   useEffect(() => {
-    // Prevent multiple loads
-    if (emailLoadedRef.current) return;
-    emailLoadedRef.current = true; // Mark as loading immediately
-    
-    let isMounted = true;
-    let timeoutId = null;
-    
-    const loadEmail = async () => {
+    console.log("[EMAIL] isLoadingEmail state changed to:", isLoadingEmail);
+  }, [isLoadingEmail]);
+
+  // Load email on mount
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      console.log("[EMAIL] Starting load...");
+      setIsLoadingEmail(true);
       try {
-        if (!isMounted) return;
-        
-        console.log("Settings: Loading email from SecureStore...");
-        
-        // Add timeout fallback to prevent indefinite loading (5 second max)
-        timeoutId = setTimeout(() => {
-          if (isMounted) {
-            console.warn("Settings: Email loading timeout - setting to empty and stopping load");
-            setEmail("");
-            setLoadingEmail(false);
-          }
-        }, 5000);
-        
-        const storedEmail = await SecureStore.getItemAsync("user_email");
-        console.log("Settings: Email loaded:", storedEmail ? "exists" : "null");
-        
-        // Clear timeout if operation completes
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
+        const stored = await SecureStore.getItemAsync("user_email");
+        console.log("[EMAIL LOAD] Loaded from SecureStore:", stored ? `"${stored}"` : "null");
+        if (!cancelled) {
+          setEmail(stored ?? "");
+          console.log("[EMAIL LOAD] Set email state to:", stored ?? "(empty)");
         }
-        
-        if (isMounted) {
-          setEmail(storedEmail || "");
-          setLoadingEmail(false);
-          console.log("Settings: Email loading complete");
-        }
-      } catch (error) {
-        console.error("Error loading email:", error);
-        
-        // Clear timeout on error
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-        
-        if (isMounted) {
+      } catch (e) {
+        console.log("[EMAIL] load error", e);
+        if (!cancelled) {
           setEmail("");
-          setLoadingEmail(false);
+          console.log("[EMAIL] Set email to empty on error");
+        }
+      } finally {
+        if (!cancelled) {
+          console.log("[EMAIL] Setting isLoadingEmail to false");
+          setIsLoadingEmail(false);
+          console.log("[EMAIL] isLoadingEmail should now be false");
+        } else {
+          console.log("[EMAIL] Component cancelled, not updating state");
         }
       }
-    };
+    })();
 
-    loadEmail();
-    
     return () => {
-      isMounted = false;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      console.log("[EMAIL] Cleanup: cancelling");
+      cancelled = true;
     };
-  }, []); // Empty dependency array - only run once on mount
-
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+  }, []);
 
   const handleSaveEmail = async () => {
-    setEmailError("");
-    
-    if (!email.trim()) {
-      setEmailError("Email cannot be empty");
+    const trimmed = email.trim();
+
+    // basic validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setEmailError("Please enter a valid email.");
       return;
     }
 
-    if (!validateEmail(email.trim())) {
-      setEmailError("Please enter a valid email address");
-      return;
-    }
+    setSavingEmail(true);
+    setEmailError("");
 
     try {
-      setSavingEmail(true);
-      await SecureStore.setItemAsync("user_email", email.trim());
-      setEmailError("");
-      alert("Email saved successfully! You're now eligible for daily prizes.");
-    } catch (error) {
-      console.error("Error saving email:", error);
-      setEmailError("Failed to save email. Please try again.");
+      await SecureStore.setItemAsync("user_email", trimmed);
+    } catch (e) {
+      console.warn("Failed to save email", e);
+      setEmailError("Could not save email. Please try again.");
     } finally {
       setSavingEmail(false);
     }
@@ -179,10 +161,14 @@ export default function Settings() {
     }
   };
 
+  console.log("Settings: About to return JSX, isLoadingEmail:", isLoadingEmail);
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
       <StatusBar style="light" />
+      
+      {/* TextInput removed - React Native 0.81.5 + React 19.1.0 compatibility issue */}
+      {/* Will implement email card using alternative approach */}
 
       <ScrollView
         style={{ flex: 1 }}
@@ -191,8 +177,7 @@ export default function Settings() {
           paddingBottom: insets.bottom + 40,
         }}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="always"
       >
         {/* Home icon - top left */}
         <TouchableOpacity
@@ -222,14 +207,7 @@ export default function Settings() {
 
         {/* Header */}
         <View style={{ alignItems: "center", marginTop: 20 }}>
-          <Image
-            source={{
-              uri: "https://ucarecdn.com/8a5e7150-008a-406b-ae1e-1a737a233970/-/format/auto/",
-            }}
-            style={{ width: 300, height: 80 }}
-            contentFit="contain"
-            transition={100}
-          />
+          <Text style={{ color: "white", fontSize: 24 }}>Settings</Text>
         </View>
 
         {/* Return Home Button */}
@@ -337,7 +315,7 @@ export default function Settings() {
           )}
         </View>
 
-        {/* Email Card */}
+        {/* Email Card - Using Modal for TextInput */}
         <View
           style={{
             marginHorizontal: 20,
@@ -358,56 +336,104 @@ export default function Settings() {
               marginBottom: 16,
             }}
           >
-            EMAIL {email && "✓"}
+            EMAIL {email ? "✓" : ""}
           </Text>
 
-          {loadingEmail ? (
-            <ActivityIndicator size="small" color="#7B68EE" />
+          {/* Show loading spinner when loading */}
+          {isLoadingEmail ? (
+            <View style={{ alignItems: "center", marginBottom: 16 }}>
+              <ActivityIndicator size="small" color="#7B68EE" />
+            </View>
           ) : (
             <>
-              <TextInput
-                value={email}
-                onChangeText={(text) => {
-                  setEmail(text);
-                  setEmailError("");
-                }}
-                placeholder="Enter your email address"
-                placeholderTextColor="#666666"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!savingEmail}
+              {/* Display current email or placeholder */}
+              <View
                 style={{
-                  fontSize: 16,
-                  color: "#FFFFFF",
-                  backgroundColor: "#2A2A2A",
+                  paddingVertical: 12,
+                  paddingHorizontal: 12,
+                  backgroundColor: email ? "#2A2A2A" : "transparent",
                   borderRadius: 8,
-                  padding: 12,
-                  borderWidth: 1,
-                  borderColor: emailError ? "#FF0000" : "#444444",
-                  marginBottom: 8,
+                  borderWidth: email ? 1 : 0,
+                  borderColor: "#444444",
+                  marginBottom: 12,
+                  minHeight: 48,
+                  justifyContent: "center",
                 }}
-              />
-              {emailError ? (
+              >
                 <Text
                   style={{
-                    fontSize: 12,
-                    color: "#FF0000",
-                    marginBottom: 12,
+                    fontSize: 16,
+                    color: email ? "#FFFFFF" : "#666666",
+                    lineHeight: 24,
                   }}
                 >
-                  {emailError}
+                  {email || "No email set"}
                 </Text>
-              ) : null}
+              </View>
+
+              {/* Button to open email input using Alert.prompt */}
               <TouchableOpacity
-                onPress={handleSaveEmail}
-                disabled={savingEmail || !email.trim()}
+                onPress={() => {
+                  console.log("Add/Edit Email button pressed");
+                  // Use Alert.prompt as workaround for TextInput crash
+                  Alert.prompt(
+                    email ? "Edit Email" : "Add Email",
+                    "Enter your email address:",
+                    [
+                      {
+                        text: "Cancel",
+                        style: "cancel",
+                      },
+                      {
+                        text: "Save",
+                        onPress: async (inputEmail) => {
+                          if (!inputEmail || !inputEmail.trim()) {
+                            setEmailError("Please enter an email address.");
+                            return;
+                          }
+                          const trimmed = inputEmail.trim();
+                          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+                            setEmailError("Please enter a valid email.");
+                            return;
+                          }
+
+                          setSavingEmail(true);
+                          setEmailError("");
+
+                          try {
+                            console.log("[EMAIL SAVE] Saving email to SecureStore:", trimmed);
+                            await SecureStore.setItemAsync("user_email", trimmed);
+                            console.log("[EMAIL SAVE] Successfully saved to SecureStore");
+                            
+                            // Verify it was saved by reading it back
+                            const verification = await SecureStore.getItemAsync("user_email");
+                            console.log("[EMAIL SAVE] Verification - Read back from SecureStore:", verification);
+                            console.log("[EMAIL SAVE] Verification - Match:", verification === trimmed);
+                            
+                            setEmail(trimmed);
+                            console.log("[EMAIL SAVE] Updated email state to:", trimmed);
+                          } catch (e) {
+                            console.error("[EMAIL SAVE] Failed to save email", e);
+                            setEmailError("Could not save email. Please try again.");
+                          } finally {
+                            setSavingEmail(false);
+                          }
+                        },
+                      },
+                    ],
+                    "plain-text",
+                    email || "",
+                    "email-address"
+                  );
+                }}
+                disabled={savingEmail}
                 style={{
-                  backgroundColor: email.trim() ? "#7B68EE" : "#333333",
+                  backgroundColor: "#7B68EE",
                   borderRadius: 8,
                   paddingVertical: 12,
                   alignItems: "center",
-                  opacity: savingEmail || !email.trim() ? 0.6 : 1,
+                  opacity: savingEmail ? 0.6 : 1,
+                  marginBottom: 12,
                 }}
               >
                 <Text
@@ -417,9 +443,22 @@ export default function Settings() {
                     color: "#FFFFFF",
                   }}
                 >
-                  {savingEmail ? "Saving..." : "Save Email"}
+                  {email ? "Edit Email" : "Add Email"}
                 </Text>
               </TouchableOpacity>
+
+              {!!emailError && (
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: "#FF0000",
+                    marginBottom: 12,
+                  }}
+                >
+                  {emailError}
+                </Text>
+              )}
+
               <View
                 style={{
                   height: 1,
@@ -772,6 +811,8 @@ export default function Settings() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Email input now uses Alert.prompt instead of Modal+TextInput */}
 
       {/* Delete Confirmation Modal */}
       <Modal
