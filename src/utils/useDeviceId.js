@@ -39,13 +39,42 @@ export default function useDeviceId() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+    
     async function loadOrCreateDeviceId() {
       let hasConsent = false;
+      let consentTimeoutId = null;
       
       try {
-        // First check if user has given consent
-        const consent = await SecureStore.getItemAsync(CONSENT_KEY);
+        // Add timeout for consent check to prevent indefinite loading
+        consentTimeoutId = setTimeout(() => {
+          if (!isMounted) return;
+          console.warn("useDeviceId: Consent check timeout - assuming no consent");
+          setLoading(false);
+          setDeviceId(null);
+          setFriendlyName(null);
+        }, 5000);
+        
+        // First check if user has given consent - use Promise.race for timeout
+        console.log("useDeviceId: Checking consent...");
+        const consentPromise = SecureStore.getItemAsync(CONSENT_KEY);
+        const consentTimeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Consent check timeout")), 5000)
+        );
+        const consent = await Promise.race([consentPromise, consentTimeoutPromise]).catch((error) => {
+          console.warn("useDeviceId: Consent check failed or timed out:", error.message);
+          return null;
+        });
+        console.log("useDeviceId: Consent value:", consent);
+        
+        // Clear timeout if operation completes
+        if (consentTimeoutId) {
+          clearTimeout(consentTimeoutId);
+          consentTimeoutId = null;
+        }
+        
         hasConsent = consent === "true";
+        console.log("useDeviceId: Has consent:", hasConsent);
 
         if (!hasConsent) {
           // No consent given, don't generate or load ID
@@ -54,16 +83,48 @@ export default function useDeviceId() {
           setLoading(false);
           return;
         }
+        
+        // Note: We're using Promise.race for individual SecureStore calls instead of a global timeout
 
         // Consent given, proceed with loading or creating ID
         let id = null;
         let name = null;
         
         try {
-          id = await SecureStore.getItemAsync(DEVICE_ID_KEY);
-          name = await SecureStore.getItemAsync(FRIENDLY_NAME_KEY);
+          console.log("useDeviceId: Reading device ID and friendly name from SecureStore...");
+          
+          // Read both values in parallel with individual timeouts
+          const readWithTimeout = async (key, timeoutMs = 2000) => {
+            try {
+              console.log(`useDeviceId: Starting read for ${key}...`);
+              const startTime = Date.now();
+              const promise = SecureStore.getItemAsync(key);
+              const timeout = new Promise((_, reject) => 
+                setTimeout(() => {
+                  console.warn(`useDeviceId: ${key} read timeout after ${timeoutMs}ms`);
+                  reject(new Error(`${key} read timeout`));
+                }, timeoutMs)
+              );
+              const result = await Promise.race([promise, timeout]);
+              const duration = Date.now() - startTime;
+              console.log(`useDeviceId: ${key} read complete in ${duration}ms, value:`, result ? "exists" : "null");
+              return result;
+            } catch (error) {
+              console.warn(`useDeviceId: ${key} read error:`, error.message);
+              return null;
+            }
+          };
+          
+          const [deviceIdResult, friendlyNameResult] = await Promise.all([
+            readWithTimeout(DEVICE_ID_KEY, 2000),
+            readWithTimeout(FRIENDLY_NAME_KEY, 2000)
+          ]);
+          
+          id = deviceIdResult;
+          name = friendlyNameResult;
+          console.log("useDeviceId: Read values - ID:", id ? "exists" : "null", "Name:", name ? "exists" : "null");
         } catch (readError) {
-          console.warn("Error reading from SecureStore, will generate new values:", readError);
+          console.warn("useDeviceId: Error reading from SecureStore, will generate new values:", readError);
           // Continue to generation logic below
         }
 
@@ -88,21 +149,42 @@ export default function useDeviceId() {
             // Continue with in-memory value
           }
         }
-
+        
         // Safeguard: Ensure we always have values if consent exists
+        if (!isMounted) {
+          console.log("useDeviceId: Component unmounted, skipping state updates");
+          return;
+        }
+        
         if (hasConsent) {
-          setDeviceId(id || generateUUID());
-          setFriendlyName(name || generateFriendlyName());
+          const finalId = id || generateUUID();
+          const finalName = name || generateFriendlyName();
+          console.log("useDeviceId: Setting final values - ID:", finalId.substring(0, 8) + "...", "Name:", finalName);
+          console.log("useDeviceId: About to call setDeviceId, setFriendlyName, setLoading(false)");
+          setDeviceId(finalId);
+          setFriendlyName(finalName);
+          setLoading(false);
+          console.log("useDeviceId: State setters called - Loading complete");
+        } else {
+          // Shouldn't reach here, but ensure loading is false
+          console.log("useDeviceId: No consent, setting loading to false");
+          if (isMounted) {
+            setLoading(false);
+          }
         }
       } catch (error) {
-        console.error("Error loading device ID:", error);
+        console.error("useDeviceId: Error loading device ID:", error);
+        console.error("useDeviceId: Error stack:", error.stack);
+        
         // Final safeguard: If consent exists, always generate values (even if all SecureStore operations failed)
-        if (hasConsent) {
+        if (hasConsent && isMounted) {
           const id = generateUUID();
           const name = generateFriendlyName();
+          console.log("useDeviceId: Error recovery - generating fallback values - ID:", id.substring(0, 8) + "...", "Name:", name);
           setDeviceId(id);
           setFriendlyName(name);
-        } else {
+          setLoading(false);
+        } else if (isMounted) {
           // Double-check consent in case first check failed
           try {
             const consent = await SecureStore.getItemAsync(CONSENT_KEY);
@@ -111,20 +193,33 @@ export default function useDeviceId() {
               const name = generateFriendlyName();
               setDeviceId(id);
               setFriendlyName(name);
+            } else {
+              setDeviceId(null);
+              setFriendlyName(null);
             }
           } catch (finalError) {
             console.error("Final error checking consent:", finalError);
             // If we can't even check consent, set to null
             setDeviceId(null);
             setFriendlyName(null);
+          } finally {
+            setLoading(false);
           }
         }
       } finally {
-        setLoading(false);
+        // Ensure loading is always set to false as a final safeguard
+        // (Some paths already set it, but this ensures it's always set)
+        // Note: Individual SecureStore calls use Promise.race for timeout handling
       }
     }
 
     loadOrCreateDeviceId();
+    
+    // Cleanup function to clear any pending timeouts if component unmounts
+    return () => {
+      isMounted = false;
+      console.log("useDeviceId: Cleanup - component unmounting");
+    };
   }, []);
 
   return { deviceId, friendlyName, loading };

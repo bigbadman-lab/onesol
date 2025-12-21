@@ -27,6 +27,7 @@ export default function Settings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { deviceId, friendlyName, loading: loadingDeviceId } = useDeviceId();
+  
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -52,16 +53,19 @@ export default function Settings() {
       try {
         if (!isMounted) return;
         
+        console.log("Settings: Loading email from SecureStore...");
+        
         // Add timeout fallback to prevent indefinite loading (5 second max)
         timeoutId = setTimeout(() => {
           if (isMounted) {
-            console.warn("Email loading timeout - setting to empty and stopping load");
+            console.warn("Settings: Email loading timeout - setting to empty and stopping load");
             setEmail("");
             setLoadingEmail(false);
           }
         }, 5000);
         
         const storedEmail = await SecureStore.getItemAsync("user_email");
+        console.log("Settings: Email loaded:", storedEmail ? "exists" : "null");
         
         // Clear timeout if operation completes
         if (timeoutId) {
@@ -72,6 +76,7 @@ export default function Settings() {
         if (isMounted) {
           setEmail(storedEmail || "");
           setLoadingEmail(false);
+          console.log("Settings: Email loading complete");
         }
       } catch (error) {
         console.error("Error loading email:", error);
@@ -174,6 +179,7 @@ export default function Settings() {
     }
   };
 
+
   return (
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
       <StatusBar style="light" />
@@ -258,12 +264,13 @@ export default function Settings() {
         <View
           style={{
             marginHorizontal: 20,
-            marginTop: 60,
+            marginTop: 20,
             backgroundColor: "#1A1A1A",
             borderRadius: 16,
             padding: 24,
             borderWidth: 2,
             borderColor: "#333333",
+            minHeight: 100,
           }}
         >
           <View
@@ -340,6 +347,7 @@ export default function Settings() {
             padding: 24,
             borderWidth: 2,
             borderColor: "#333333",
+            minHeight: 200,
           }}
         >
           <Text
@@ -444,6 +452,7 @@ export default function Settings() {
             padding: 24,
             borderWidth: 2,
             borderColor: "#333333",
+            minHeight: 100,
           }}
         >
           <Text
@@ -456,16 +465,20 @@ export default function Settings() {
           >
             YOUR DEVICE ID
           </Text>
-          <Text
-            style={{
-              fontSize: 16,
-              color: "#FFFFFF",
-              lineHeight: 24,
-              fontFamily: "monospace",
-            }}
-          >
-            {deviceId || "Loading..."}
-          </Text>
+          {loadingDeviceId ? (
+            <ActivityIndicator size="small" color="#7B68EE" />
+          ) : (
+            <Text
+              style={{
+                fontSize: 16,
+                color: "#FFFFFF",
+                lineHeight: 24,
+                fontFamily: "monospace",
+              }}
+            >
+              {deviceId || "Not available"}
+            </Text>
+          )}
           <View
             style={{
               height: 1,

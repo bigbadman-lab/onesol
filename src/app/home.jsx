@@ -20,6 +20,10 @@ import { scheduleDailyNotification } from "../notifications/testNotifications";
 import * as Notifications from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
 
+// Constants for resetting onboarding/consent (for testing)
+const ONBOARDING_KEY = "onboarding_completed";
+const CONSENT_KEY = "user_consent_given";
+
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -36,6 +40,18 @@ export default function Home() {
 
   const startEndlessMode = useGameStore((state) => state.startEndlessMode);
   const resetEndlessMode = useGameStore((state) => state.resetEndlessMode);
+
+  const handleResetOnboarding = async () => {
+    try {
+      // Clear onboarding and consent state for testing
+      await SecureStore.deleteItemAsync(ONBOARDING_KEY);
+      await SecureStore.deleteItemAsync(CONSENT_KEY);
+      alert("Onboarding and consent state reset! Please restart the app to see the onboarding flow.");
+    } catch (error) {
+      console.error("Error resetting onboarding:", error);
+      alert("Failed to reset onboarding state. Please try again.");
+    }
+  };
 
   if (!loaded && !error) {
     return null;
@@ -258,6 +274,33 @@ export default function Home() {
             }}
           >
             How it works
+          </Text>
+        </TouchableOpacity>
+
+        {/* Reset Onboarding Button (Dev/Testing) */}
+        <TouchableOpacity
+          style={{
+            marginTop: 40,
+            marginHorizontal: 20,
+            backgroundColor: "#1A1A1A",
+            borderWidth: 2,
+            borderColor: "#7B68EE",
+            borderRadius: 16,
+            paddingVertical: 12,
+            paddingHorizontal: 24,
+            alignItems: "center",
+          }}
+          onPress={handleResetOnboarding}
+          activeOpacity={0.7}
+        >
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "600",
+              color: "#7B68EE",
+            }}
+          >
+            Reset Onboarding (Testing)
           </Text>
         </TouchableOpacity>
 
