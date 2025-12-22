@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "One Sol: Memecoin Market Simulator",
+    "name": "One Sol",
     "slug": "memecoin-market-simulator",
     "version": "1.0.0",
     "scheme": "onesol",
@@ -13,8 +13,7 @@
       "buildNumber": "10",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "CFBundleDisplayName": "One Sol",
-        "UIBackgroundModes": []
+        "CFBundleDisplayName": "One Sol"
       },
       "bundleIdentifier": "com.createinc.aeb5e7d736fa4b858559cd73dd97762d"
     },
@@ -38,9 +37,9 @@
         {
           "backgroundColor": "#000000",
           "image": "./assets/images/splash-icon.png",
-          "resizeMode": "cover",
+          "resizeMode": "contain",
           "ios": {
-            "resizeMode": "cover"
+            "resizeMode": "contain"
           },
           "android": {
             "resizeMode": "cover",

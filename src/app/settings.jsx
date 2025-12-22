@@ -1200,6 +1200,32 @@ export default function Settings() {
                 <ExternalLink size={20} color="#999999" />
               </TouchableOpacity>
 
+              {/* X */}
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: 20,
+                  borderBottomWidth: 1,
+                  borderBottomColor: "#333333",
+                }}
+                onPress={() => {
+                  Linking.openURL("https://x.com/onesolsimulator");
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  X
+                </Text>
+                <ExternalLink size={20} color="#999999" />
+              </TouchableOpacity>
+
               {/* Privacy Policy */}
               <TouchableOpacity
                 style={{

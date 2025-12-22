@@ -138,6 +138,7 @@ export default function Consent() {
             {"\n"}• A randomly generated anonymous ID (stored securely on your
             device)
             {"\n"}• Your game scores and optional nickname
+            {"\n"}• Email address (optional, only if you choose to participate in the daily leaderboard contest)
           </Text>
 
           <Text
@@ -148,9 +149,8 @@ export default function Consent() {
             }}
           >
             <Text style={{ fontWeight: "700" }}>What we don't collect:</Text>
-            {"\n"}• No personal information
+            {"\n"}• No personal information (beyond optional email for contest participation)
             {"\n"}• No location data
-            {"\n"}• No contact information
             {"\n"}• No device information beyond the anonymous ID
           </Text>
         </View>
