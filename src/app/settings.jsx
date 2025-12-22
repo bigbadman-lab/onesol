@@ -1058,11 +1058,12 @@ export default function Settings() {
                 {"\n"}• Contest day resets daily at midnight local time
                 {"\n\n"}
                 <Text style={{ fontWeight: "700" }}>Prizes</Text>
-                {"\n"}• Daily Prize: 50% of fees generated from the official $ONESOL token for that day
+                {"\n"}• Daily Prize: Up to 50% of fees generated from the official $ONESOL token for that day
                 {"\n"}• Prize value varies daily based on token fees
                 {"\n"}• Prize will be distributed in cryptocurrency (SOL or $ONESOL)
                 {"\n"}• Prize amount will be calculated and confirmed after the contest day ends
                 {"\n"}• Only one prize per person per day
+                {"\n\n"}Refer to 1sol.fun/contest-rules for more information
                 {"\n\n"}
                 <Text style={{ fontWeight: "700" }}>Claim Process</Text>
                 {"\n"}• Winners will be notified via email within 24 hours of selection

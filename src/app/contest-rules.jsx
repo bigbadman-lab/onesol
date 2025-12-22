@@ -259,13 +259,14 @@ export default function ContestRules() {
               PRIZES
             </Text>
             <Text style={{ fontSize: 16, color: "#FFFFFF", lineHeight: 24 }}>
-              • Daily Prize: 50% of fees generated from the official $ONESOL
+              • Daily Prize: Up to 50% of fees generated from the official $ONESOL
               token for that day
               {"\n"}• Prize value varies daily based on token fees
               {"\n"}• Prize will be distributed in cryptocurrency (SOL or $ONESOL)
               {"\n"}• Prize amount will be calculated and confirmed after the
               contest day ends
               {"\n"}• Only one prize per person per day
+              {"\n\n"}Refer to 1sol.fun/contest-rules for more information
             </Text>
           </View>
 
