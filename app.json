@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "One Sol",
+    "name": "One Sol: Memecoin Simulator",
     "slug": "memecoin-market-simulator",
     "version": "1.0.0",
     "scheme": "onesol",
@@ -13,7 +13,8 @@
       "buildNumber": "10",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "CFBundleDisplayName": "One Sol"
+        "CFBundleDisplayName": "One Sol: Memecoin Simulator",
+        "CFBundleName": "One Sol: Memecoin Simulator"
       },
       "bundleIdentifier": "com.createinc.aeb5e7d736fa4b858559cd73dd97762d"
     },
